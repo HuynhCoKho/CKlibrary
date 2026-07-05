@@ -33,6 +33,7 @@ body {
   z-index: 5;
 }
 .eyebrow { margin: 0 0 4px; color: var(--brand); font-weight: 800; letter-spacing: 0; }
+.author { margin: 8px 0 0; color: var(--muted); font-weight: 700; }
 h1, h2 { margin: 0; letter-spacing: 0; }
 h1 { font-size: clamp(24px, 4vw, 34px); }
 h2 { font-size: 18px; }
