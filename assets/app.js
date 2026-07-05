@@ -18,11 +18,41 @@ let state = {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const fmtMoney = (value) => `${Number(value || 0).toLocaleString(CONFIG.currency)} đ`;
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => {
+  const d = new Date();
+  return dateToISO(d);
+};
+const dateToISO = (d) => {
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
+};
+const dateFields = new Set(["borrowDate", "dueDate", "returnDate", "date"]);
+const toISODate = (value) => {
+  if (!value) return "";
+  const raw = String(value).trim();
+  const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) {
+    const [, day, month, year] = dmy;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, year, month, day] = iso;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? raw : dateToISO(parsed);
+};
+const fmtDate = (value) => {
+  const iso = toISODate(value);
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value || "";
+};
 const addDays = (iso, days) => {
-  const d = new Date(iso || todayISO());
+  const d = new Date(toISODate(iso) || todayISO());
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return dateToISO(d);
 };
 const uid = (prefix) => `${prefix}${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 const isAdmin = () => Boolean(state.adminToken);
@@ -138,7 +168,7 @@ function validateRules(kind, record) {
   if (borrower.blacklisted === "Có") throw new Error("Người mượn đang trong danh sách đen.");
   const active = state.loans.filter((loan) => loan.borrowerId === record.borrowerId && loan.status === "Đang mượn" && loan.id !== record.id).length;
   if (active >= CONFIG.maxActiveLoans) throw new Error("Mỗi người chỉ được mượn tối đa 5 quyển đang mở.");
-  if (new Date(record.dueDate) > new Date(addDays(record.borrowDate, CONFIG.maxLoanDays))) throw new Error("Hạn trả tối đa là 7 ngày.");
+  if (new Date(toISODate(record.dueDate)) > new Date(addDays(record.borrowDate, CONFIG.maxLoanDays))) throw new Error("Hạn trả tối đa là 7 ngày.");
 }
 
 function applySideEffects(kind, record) {
@@ -207,12 +237,12 @@ function renderBorrowOptions() {
 
 function getOverdueLoans() {
   const now = new Date(todayISO());
-  return state.loans.filter((l) => l.status === "Đang mượn" && new Date(l.dueDate) < now);
+  return state.loans.filter((l) => l.status === "Đang mượn" && new Date(toISODate(l.dueDate)) < now);
 }
 
 function renderAlerts() {
   const overdue = getOverdueLoans();
-  $("#alerts").innerHTML = overdue.length ? overdue.map((l) => `<p>${statusBadge("Quá hạn")} <b>${byId(state.books, l.bookId).title || l.bookId}</b> - ${byId(state.borrowers, l.borrowerId).name || l.borrowerId}, hạn ${l.dueDate}</p>`).join("") : "<p class='empty'>Không có sách quá hạn.</p>";
+  $("#alerts").innerHTML = overdue.length ? overdue.map((l) => `<p>${statusBadge("Quá hạn")} <b>${byId(state.books, l.bookId).title || l.bookId}</b> - ${byId(state.borrowers, l.borrowerId).name || l.borrowerId}, hạn ${fmtDate(l.dueDate)}</p>`).join("") : "<p class='empty'>Không có sách quá hạn.</p>";
 }
 
 function renderCards(store, container, titleFn, bodyFn, kind) {
@@ -224,17 +254,20 @@ function renderPeople() {
 }
 
 function renderLoans() {
-  $("#loansTable").innerHTML = state.loans.map((l) => `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${l.borrowDate || ""}</td><td>${l.dueDate || ""}</td><td>${l.returnDate || ""}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(l.status)}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`).join("") || $("#emptyTemplate").innerHTML;
+  $("#loansTable").innerHTML = state.loans.map((l) => `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${fmtDate(l.borrowDate)}</td><td>${fmtDate(l.dueDate)}</td><td>${fmtDate(l.returnDate)}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(l.status)}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`).join("") || $("#emptyTemplate").innerHTML;
 }
 
 function renderFinance() {
-  const from = $("#financeFrom").value || "0000-01-01";
-  const to = $("#financeTo").value || "9999-12-31";
-  const rows = state.finance.filter((f) => f.date >= from && f.date <= to);
+  const from = toISODate($("#financeFrom").value) || "0000-01-01";
+  const to = toISODate($("#financeTo").value) || "9999-12-31";
+  const rows = state.finance.filter((f) => {
+    const date = toISODate(f.date);
+    return date >= from && date <= to;
+  });
   const income = rows.filter((f) => f.kind === "Thu").reduce((s, f) => s + Number(f.amount || 0), 0);
   const expense = rows.filter((f) => f.kind === "Chi").reduce((s, f) => s + Number(f.amount || 0), 0);
   $("#financeSummary").innerHTML = [["Thu", income], ["Chi", expense], ["Còn lại", income - expense]].map(([l, v]) => `<div class="stat"><b>${fmtMoney(v)}</b><span>${l}</span></div>`).join("");
-  $("#financeTable").innerHTML = rows.map((f) => `<tr><td>${f.id}</td><td>${f.date}</td><td>${f.kind}</td><td>${f.category}</td><td>${fmtMoney(f.amount)}</td><td>${f.note || ""}</td><td><button class="icon-button" onclick="openForm('finance','${f.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`).join("") || $("#emptyTemplate").innerHTML;
+  $("#financeTable").innerHTML = rows.map((f) => `<tr><td>${f.id}</td><td>${fmtDate(f.date)}</td><td>${f.kind}</td><td>${f.category}</td><td>${fmtMoney(f.amount)}</td><td>${f.note || ""}</td><td><button class="icon-button" onclick="openForm('finance','${f.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`).join("") || $("#emptyTemplate").innerHTML;
 }
 
 function fieldHtml([name, label, type, readonly, klass], value = "") {
@@ -247,6 +280,7 @@ function fieldHtml([name, label, type, readonly, klass], value = "") {
   else if (type === "shelf") input = options(state.shelves.map((s) => [s.id, `${s.name} (${byId(state.areas, s.areaId).name || ""})`]));
   else if (type === "book") input = options(state.books.map((b) => [b.id, b.title]));
   else if (type === "person") input = options(state.borrowers.map((p) => [p.id, `${p.name} - ${p.phone || ""}`]));
+  else if (type === "date") input = `<input ${common} type="text" value="${fmtDate(value)}" placeholder="dd/mm/yyyy" inputmode="numeric" />`;
   else input = `<input ${common} type="${type}" value="${value || ""}" />`;
   return `<label class="${klass || ""}">${label}${input}</label>`;
 }
@@ -275,7 +309,11 @@ function defaultsFor(kind) {
 
 function readDialogRecord() {
   const data = new FormData($("#recordDialog form"));
-  return Object.fromEntries(data.entries());
+  const record = Object.fromEntries(data.entries());
+  Object.keys(record).forEach((key) => {
+    if (dateFields.has(key)) record[key] = toISODate(record[key]);
+  });
+  return record;
 }
 
 function bindEvents() {
