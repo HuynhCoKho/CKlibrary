@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CK Library</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="assets/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">CK Library</p>
+        <h1>Quản lý thư viện</h1>
+      </div>
+      <div class="top-actions">
+        <button class="icon-button" id="refreshBtn" title="Tải lại dữ liệu"><i data-lucide="refresh-cw"></i></button>
+        <button class="primary" id="adminBtn"><i data-lucide="lock-keyhole"></i><span>Quản trị</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="stats" id="stats"></section>
+
+      <nav class="tabs" aria-label="Chức năng">
+        <button class="tab active" data-view="catalog"><i data-lucide="library"></i><span>Kho sách</span></button>
+        <button class="tab" data-view="borrow"><i data-lucide="handshake"></i><span>Mượn sách</span></button>
+        <button class="tab admin-only" data-view="areas"><i data-lucide="map-pin"></i><span>Khu vực</span></button>
+        <button class="tab admin-only" data-view="shelves"><i data-lucide="archive"></i><span>Kệ sách</span></button>
+        <button class="tab admin-only" data-view="people"><i data-lucide="users"></i><span>Người mượn</span></button>
+        <button class="tab admin-only" data-view="loans"><i data-lucide="clipboard-list"></i><span>Phiếu mượn</span></button>
+        <button class="tab admin-only" data-view="finance"><i data-lucide="wallet-cards"></i><span>Thu chi</span></button>
+      </nav>
+
+      <section class="notice" id="notice"></section>
+
+      <section class="view active" id="catalogView">
+        <div class="toolbar">
+          <div class="search">
+            <i data-lucide="search"></i>
+            <input id="bookSearch" placeholder="Tìm tên sách, tác giả, chủ đề..." />
+          </div>
+          <select id="bookStatusFilter">
+            <option value="">Tất cả trạng thái</option>
+            <option>Đang ở kệ</option>
+            <option>Cho mượn</option>
+            <option>Bảo trì</option>
+            <option>Đã bán</option>
+          </select>
+          <button class="primary admin-only" data-open-form="book"><i data-lucide="plus"></i><span>Thêm sách</span></button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Loại</th><th>Chủ đề</th><th>Tên sách</th><th>Tác giả</th><th>NXB</th><th>Năm</th><th>Kệ</th><th>Trạng thái</th><th>Phí</th><th class="admin-only">Sửa</th>
+              </tr>
+            </thead>
+            <tbody id="booksTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view" id="borrowView">
+        <div class="split">
+          <form class="panel" id="borrowRequestForm">
+            <h2>Đăng ký mượn sách</h2>
+            <label>Chọn sách<select name="bookId" required></select></label>
+            <label>Họ tên<input name="name" required /></label>
+            <label>Số điện thoại<input name="phone" required /></label>
+            <label>Email<input type="email" name="email" /></label>
+            <label>Ghi chú<textarea name="note" rows="3"></textarea></label>
+            <button class="primary" type="submit"><i data-lucide="send"></i><span>Gửi yêu cầu</span></button>
+          </form>
+          <div class="panel">
+            <h2>Cảnh báo quản lý</h2>
+            <div id="alerts"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view admin-only" id="areasView">
+        <div class="toolbar"><button class="primary" data-open-form="area"><i data-lucide="plus"></i><span>Thêm khu vực</span></button></div>
+        <div class="cards" id="areasList"></div>
+      </section>
+
+      <section class="view admin-only" id="shelvesView">
+        <div class="toolbar"><button class="primary" data-open-form="shelf"><i data-lucide="plus"></i><span>Thêm kệ</span></button></div>
+        <div class="cards" id="shelvesList"></div>
+      </section>
+
+      <section class="view admin-only" id="peopleView">
+        <div class="toolbar"><button class="primary" data-open-form="person"><i data-lucide="plus"></i><span>Thêm người mượn</span></button></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>ID</th><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Danh sách đen</th><th>Ghi chú</th><th>Sửa</th></tr></thead><tbody id="peopleTable"></tbody></table>
+        </div>
+      </section>
+
+      <section class="view admin-only" id="loansView">
+        <div class="toolbar"><button class="primary" data-open-form="loan"><i data-lucide="plus"></i><span>Tạo phiếu mượn</span></button></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>ID</th><th>Sách</th><th>Người mượn</th><th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Cọc</th><th>Phí</th><th>Trạng thái</th><th>Sửa</th></tr></thead><tbody id="loansTable"></tbody></table>
+        </div>
+      </section>
+
+      <section class="view admin-only" id="financeView">
+        <div class="toolbar">
+          <button class="primary" data-open-form="finance"><i data-lucide="plus"></i><span>Thêm thu chi</span></button>
+          <input type="date" id="financeFrom" />
+          <input type="date" id="financeTo" />
+        </div>
+        <div class="finance-summary" id="financeSummary"></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>ID</th><th>Ngày</th><th>Loại</th><th>Danh mục</th><th>Số tiền</th><th>Ghi chú</th><th>Sửa</th></tr></thead><tbody id="financeTable"></tbody></table>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="recordDialog">
+      <form method="dialog" class="dialog-card">
+        <button class="icon-button close" value="cancel" title="Đóng"><i data-lucide="x"></i></button>
+        <h2 id="dialogTitle"></h2>
+        <div id="dialogFields"></div>
+        <div class="dialog-actions">
+          <button class="danger" type="button" id="deleteBtn"><i data-lucide="trash-2"></i><span>Xóa</span></button>
+          <button class="primary" type="submit"><i data-lucide="save"></i><span>Lưu</span></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="adminDialog">
+      <form method="dialog" class="dialog-card small">
+        <button class="icon-button close" value="cancel" title="Đóng"><i data-lucide="x"></i></button>
+        <h2>Đăng nhập quản trị</h2>
+        <label>Mã quản trị<input id="adminTokenInput" type="password" autocomplete="current-password" /></label>
+        <button class="primary" type="submit"><i data-lucide="unlock"></i><span>Mở khóa</span></button>
+      </form>
+    </dialog>
+
+    <template id="emptyTemplate"><tr><td colspan="12" class="empty">Chưa có dữ liệu</td></tr></template>
+  </body>
+</html>
