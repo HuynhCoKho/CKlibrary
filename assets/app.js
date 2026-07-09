@@ -147,7 +147,7 @@ async function loadData() {
   } catch {
     Object.assign(state, seedData(), JSON.parse(localStorage.getItem("cklibrary_cache") || "{}"));
     syncDerivedData();
-    showNotice("Đang dùng dữ liệu mẫu/bộ nhớ trình duyệt. Hãy cập nhật Apps Script backend để kết nối Google Sheets đầy đủ.");
+    showNotice("Chưa kết nối được Google Sheet/App Script, trang đang dùng dữ liệu tạm trong trình duyệt. Hãy cập nhật Code.gs và deploy lại Web App để đồng bộ dữ liệu thật.");
   }
   renderAll();
 }
@@ -365,7 +365,24 @@ function renderPeople() {
 }
 
 function renderLoans() {
-  $("#loansTable").innerHTML = state.loans.map((l) => `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${fmtDate(l.borrowDate)}</td><td>${fmtDate(l.dueDate)}</td><td>${fmtDate(l.returnDate)}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(l.status)}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`).join("") || $("#emptyTemplate").innerHTML;
+  $("#loansTable").innerHTML = state.loans.map((l) => {
+    const canReturn = activeLoanStatuses.has(l.status);
+    const returnButton = canReturn
+      ? `<button class="icon-button" onclick="markLoanReturned('${l.id}')" title="Đánh dấu đã trả"><i data-lucide="check-check"></i></button>`
+      : `<span class="badge good">Xong</span>`;
+    return `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${fmtDate(l.borrowDate)}</td><td>${fmtDate(l.dueDate)}</td><td>${fmtDate(l.returnDate)}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(l.status)}</td><td>${returnButton}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`;
+  }).join("") || $("#emptyTemplate").innerHTML;
+}
+
+async function markLoanReturned(id) {
+  const loan = byId(state.loans, id);
+  if (!loan.id || !activeLoanStatuses.has(loan.status)) return;
+  const updated = { ...loan, status: "Đã trả", returnDate: todayISO() };
+  try {
+    await saveRecord("loan", updated);
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 function renderFinance() {
@@ -479,6 +496,7 @@ function bindEvents() {
 }
 
 window.openForm = openForm;
+window.markLoanReturned = markLoanReturned;
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   loadData();
