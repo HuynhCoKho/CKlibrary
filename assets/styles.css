@@ -89,6 +89,24 @@ button svg { width: 18px; height: 18px; }
   color: #6d4b0c;
 }
 .notice.show { display: block; }
+.form-message {
+  display: none;
+  margin-top: 14px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  font-weight: 750;
+}
+.form-message.show { display: block; }
+.form-message.success {
+  color: #1f6b42;
+  background: #e7f5ec;
+  border: 1px solid #bfe4cc;
+}
+.form-message.error {
+  color: #9e2f22;
+  background: #fff5f3;
+  border: 1px solid #efc4bd;
+}
 .view { display: none; }
 .view.active { display: block; }
 .toolbar { margin: 0 0 12px; }
