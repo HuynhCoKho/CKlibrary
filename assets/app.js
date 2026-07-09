@@ -102,6 +102,7 @@ const schemas = {
 
 async function api(action, payload = {}) {
   if (action === "list") return jsonpList();
+  if (action === "borrowRequest") return jsonpAction("borrowRequest", payload);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12000);
   try {
@@ -123,6 +124,10 @@ async function api(action, payload = {}) {
 }
 
 function jsonpList() {
+  return jsonpAction("list");
+}
+
+function jsonpAction(action, payload = {}) {
   return new Promise((resolve, reject) => {
     const callbackName = `cklibraryJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const script = document.createElement("script");
@@ -140,8 +145,14 @@ function jsonpList() {
       if (!json || !json.ok) reject(new Error(json?.error || "Lỗi dữ liệu"));
       else resolve(json.data);
     };
+    const params = new URLSearchParams({
+      action,
+      callback: callbackName,
+      t: Date.now().toString(),
+    });
+    if (payload.record) params.set("record", JSON.stringify(payload.record));
     const separator = CONFIG.apiUrl.includes("?") ? "&" : "?";
-    script.src = `${CONFIG.apiUrl}${separator}action=list&callback=${encodeURIComponent(callbackName)}&t=${Date.now()}`;
+    script.src = `${CONFIG.apiUrl}${separator}${params.toString()}`;
     script.onerror = () => {
       cleanup();
       reject(new Error("Không tải được dữ liệu từ Apps Script."));
@@ -322,6 +333,24 @@ function syncDerivedData() {
 
 function showNotice(message) { $("#notice").textContent = message; $("#notice").classList.add("show"); }
 function hideNotice() { $("#notice").classList.remove("show"); }
+function showFormMessage(type, message) {
+  const box = $("#borrowFormMessage");
+  if (!box) return;
+  box.className = `form-message show ${type}`;
+  box.textContent = message;
+}
+function hideFormMessage() {
+  const box = $("#borrowFormMessage");
+  if (!box) return;
+  box.className = "form-message";
+  box.textContent = "";
+}
+function setBorrowSubmitting(isSubmitting) {
+  const button = $("#borrowSubmitBtn");
+  if (!button) return;
+  button.disabled = isSubmitting;
+  button.querySelector("span").textContent = isSubmitting ? "Đang gửi..." : "Gửi yêu cầu";
+}
 function statusBadge(status) {
   const cls = status === "Đang ở kệ" || status === "Đã trả" || status === "Không" ? "good" : status === "Quá hạn" || status === "Có" ? "bad" : "warn";
   return `<span class="badge ${cls}">${status || ""}</span>`;
@@ -506,22 +535,31 @@ function bindEvents() {
   });
   $("#borrowRequestForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const person = state.borrowers.find((p) => p.phone === data.phone) || { id: uid("NM"), name: data.name, phone: data.phone, email: data.email, blacklisted: "Không", note: data.note };
-    if (!state.borrowers.some((p) => p.id === person.id)) state.borrowers.push(person);
-    const book = byId(state.books, data.bookId);
-    if (!book.id || availableCopies(book) <= 0) {
-      alert("Sách này đã hết bản còn trên kệ.");
-      return;
+    hideFormMessage();
+    setBorrowSubmitting(true);
+    try {
+      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+      const person = state.borrowers.find((p) => p.phone === data.phone) || { id: uid("NM"), name: data.name, phone: data.phone, email: data.email, blacklisted: "Không", note: data.note };
+      const book = byId(state.books, data.bookId);
+      if (!book.id || availableCopies(book) <= 0) throw new Error("Sách này đã hết bản còn trên kệ.");
+      const loan = { id: uid("YC"), bookId: data.bookId, borrowerId: person.id, borrowDate: todayISO(), dueDate: addDays(todayISO(), CONFIG.maxLoanDays), returnDate: "", deposit: book.coverPrice || 0, fee: book.borrowFee || 0, damageFee: 0, status: "Đang mượn", note: `Yêu cầu công khai: ${data.note || ""}` };
+      await api("borrowRequest", { record: { person, loan } });
+      if (!state.borrowers.some((p) => p.id === person.id)) state.borrowers.push(person);
+      state.loans.push(loan);
+      syncDerivedData();
+      localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
+      event.currentTarget.reset();
+      showFormMessage("success", "Đã gửi yêu cầu mượn sách thành công.");
+      await loadData();
+      document.querySelector('[data-view="catalog"]')?.click();
+      showNotice("Đã gửi yêu cầu mượn sách thành công. Thư viện sẽ kiểm tra và xác nhận phiếu mượn.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      showFormMessage("error", error.message || "Chưa gửi được yêu cầu, vui lòng thử lại.");
+    } finally {
+      setBorrowSubmitting(false);
+      if (window.lucide) lucide.createIcons();
     }
-    const loan = { id: uid("YC"), bookId: data.bookId, borrowerId: person.id, borrowDate: todayISO(), dueDate: addDays(todayISO(), CONFIG.maxLoanDays), returnDate: "", deposit: book.coverPrice || 0, fee: book.borrowFee || 0, damageFee: 0, status: "Đang mượn", note: `Yêu cầu công khai: ${data.note || ""}` };
-    state.loans.push(loan);
-    syncDerivedData();
-    localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
-    try { await api("borrowRequest", { record: { person, loan } }); } catch {}
-    event.currentTarget.reset();
-    renderAll();
-    alert("Đã gửi yêu cầu mượn sách.");
   });
 }
 
