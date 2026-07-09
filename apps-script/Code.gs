@@ -23,7 +23,17 @@ const KIND_TO_TABLE = {
 const ACTIVE_LOAN_STATUSES = ['Đang mượn', 'Quá hạn'];
 
 function doGet(e) {
-  return jsonResponse({ ok: true, data: listData() }, e && e.parameter && e.parameter.callback);
+  try {
+    const params = (e && e.parameter) || {};
+    if (params.action === 'borrowRequest') {
+      const record = JSON.parse(params.record || '{}');
+      return jsonResponse({ ok: true, data: saveBorrowRequest(record) }, params.callback);
+    }
+    return jsonResponse({ ok: true, data: listData() }, params.callback);
+  } catch (err) {
+    const callback = e && e.parameter && e.parameter.callback;
+    return jsonResponse({ ok: false, error: err.message }, callback);
+  }
 }
 
 function doPost(e) {
