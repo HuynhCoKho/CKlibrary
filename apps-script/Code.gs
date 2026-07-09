@@ -22,8 +22,8 @@ const KIND_TO_TABLE = {
 
 const ACTIVE_LOAN_STATUSES = ['Đang mượn', 'Quá hạn'];
 
-function doGet() {
-  return jsonResponse({ ok: true, data: listData() });
+function doGet(e) {
+  return jsonResponse({ ok: true, data: listData() }, e && e.parameter && e.parameter.callback);
 }
 
 function doPost(e) {
@@ -334,6 +334,11 @@ function requireAdmin(token) {
   if (token !== expected) throw new Error('Không có quyền quản trị.');
 }
 
-function jsonResponse(payload) {
+function jsonResponse(payload, callback) {
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(payload) + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
   return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
 }
