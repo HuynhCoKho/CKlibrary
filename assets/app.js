@@ -101,6 +101,7 @@ const schemas = {
 };
 
 async function api(action, payload = {}) {
+  if (action === "list") return jsonpList();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12000);
   try {
@@ -119,6 +120,34 @@ async function api(action, payload = {}) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function jsonpList() {
+  return new Promise((resolve, reject) => {
+    const callbackName = `cklibraryJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error("Không tải được dữ liệu từ Apps Script."));
+    }, 12000);
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      script.remove();
+    };
+    window[callbackName] = (json) => {
+      cleanup();
+      if (!json || !json.ok) reject(new Error(json?.error || "Lỗi dữ liệu"));
+      else resolve(json.data);
+    };
+    const separator = CONFIG.apiUrl.includes("?") ? "&" : "?";
+    script.src = `${CONFIG.apiUrl}${separator}action=list&callback=${encodeURIComponent(callbackName)}&t=${Date.now()}`;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("Không tải được dữ liệu từ Apps Script."));
+    };
+    document.head.appendChild(script);
+  });
 }
 
 function seedData() {
@@ -299,7 +328,6 @@ function statusBadge(status) {
 }
 
 function renderAll() {
-  renderAdmin();
   renderStats();
   renderBooks();
   renderBorrowOptions();
@@ -309,6 +337,7 @@ function renderAll() {
   renderPeople();
   renderLoans();
   renderFinance();
+  renderAdmin();
   if (window.lucide) lucide.createIcons();
 }
 
