@@ -57,6 +57,17 @@ const addDays = (iso, days) => {
 const uid = (prefix) => `${prefix}${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 const isAdmin = () => Boolean(state.adminToken);
 const byId = (list, id) => list.find((item) => item.id === id) || {};
+const num = (value) => Number(value || 0);
+const bookQuantity = (book) => Math.max(0, num(book.quantity || 1));
+const activeLoanStatuses = new Set(["Đang mượn", "Quá hạn"]);
+const activeLoansForBook = (bookId) => state.loans.filter((loan) => loan.bookId === bookId && activeLoanStatuses.has(loan.status)).length;
+const activeLoansForBookExcept = (bookId, excludedLoanId) => state.loans.filter((loan) => loan.bookId === bookId && loan.id !== excludedLoanId && activeLoanStatuses.has(loan.status)).length;
+const availableCopies = (book) => Math.max(bookQuantity(book) - activeLoansForBook(book.id), 0);
+const bookDisplayStatus = (book) => {
+  if (book.status === "Bảo trì" || book.status === "Đã bán") return book.status;
+  return availableCopies(book) > 0 ? "Đang ở kệ" : "Cho mượn";
+};
+const isAutoFinance = (item) => item.relatedId || String(item.id || "").startsWith("AUTO");
 
 const schemas = {
   area: { title: "Khu vực", store: "areas", prefix: "KV", fields: [
@@ -68,7 +79,7 @@ const schemas = {
   book: { title: "Sách", store: "books", prefix: "S", fields: [
     ["id", "ID", "text", true], ["type", "Loại", ["Sách giấy", "Ebook"]], ["topic", "Chủ đề", "text"], ["title", "Tên sách", "text"],
     ["author", "Tên tác giả", "text"], ["publisher", "Nhà xuất bản", "text"], ["year", "Năm xuất bản", "number"],
-    ["shelfId", "Vị trí sách", "shelf"], ["status", "Trạng thái", ["Đang ở kệ", "Cho mượn", "Bảo trì", "Đã bán"]],
+    ["shelfId", "Vị trí sách", "shelf"], ["quantity", "Số lượng", "number"], ["status", "Trạng thái", ["Đang ở kệ", "Cho mượn", "Bảo trì", "Đã bán"]],
     ["coverPrice", "Giá bìa", "number"], ["purchasePrice", "Giá mua", "number"], ["borrowFee", "Phí mượn", "number"],
     ["note", "Ghi chú", "textarea", false, "wide"],
   ]},
@@ -84,17 +95,20 @@ const schemas = {
   ]},
   finance: { title: "Thu chi", store: "finance", prefix: "TC", fields: [
     ["id", "ID", "text", true], ["date", "Ngày", "date"], ["kind", "Loại", ["Thu", "Chi"]],
-    ["category", "Danh mục", ["Tài trợ", "Cho thuê", "Bán sách", "Nhận đặt cọc", "Mua sách", "Sửa sách", "Hoàn cọc", "Khác"]],
-    ["amount", "Số tiền", "number"], ["note", "Ghi chú", "textarea", false, "wide"],
+    ["category", "Danh mục", ["Tài trợ", "Cho thuê", "Bán sách", "Mua sách", "Sửa sách", "Bồi thường", "Khác"]],
+    ["amount", "Số tiền", "number"], ["relatedId", "Nguồn liên kết", "text", true], ["note", "Ghi chú", "textarea", false, "wide"],
   ]},
 };
 
 async function api(action, payload = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
   try {
     const res = await fetch(CONFIG.apiUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action, token: state.adminToken, ...payload }),
+      signal: controller.signal,
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || "Lỗi dữ liệu");
@@ -102,6 +116,8 @@ async function api(action, payload = {}) {
   } catch (error) {
     console.warn(error);
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -112,8 +128,8 @@ function seedData() {
     areas: [{ id: areaId, name: "Khu vực A", note: "Sách giấy thường mượn" }],
     shelves: [{ id: shelfId, name: "Kệ A1", areaId, note: "Gần cửa vào" }],
     books: [
-      { id: "S001", type: "Sách giấy", topic: "Kỹ năng", title: "Tư duy nhanh và chậm", author: "Daniel Kahneman", publisher: "NXB Thế Giới", year: 2023, shelfId, status: "Đang ở kệ", coverPrice: 250000, purchasePrice: 180000, borrowFee: 10000, note: "" },
-      { id: "S002", type: "Ebook", topic: "Công nghệ", title: "Clean Code", author: "Robert C. Martin", publisher: "Prentice Hall", year: 2008, shelfId, status: "Đang ở kệ", coverPrice: 0, purchasePrice: 0, borrowFee: 0, note: "Bản đọc nội bộ" },
+      { id: "S001", type: "Sách giấy", topic: "Kỹ năng", title: "Tư duy nhanh và chậm", author: "Daniel Kahneman", publisher: "NXB Thế Giới", year: 2023, shelfId, quantity: 2, status: "Đang ở kệ", coverPrice: 250000, purchasePrice: 180000, borrowFee: 10000, note: "" },
+      { id: "S002", type: "Ebook", topic: "Công nghệ", title: "Clean Code", author: "Robert C. Martin", publisher: "Prentice Hall", year: 2008, shelfId, quantity: 1, status: "Đang ở kệ", coverPrice: 0, purchasePrice: 0, borrowFee: 0, note: "Bản đọc nội bộ" },
     ],
     borrowers: [],
     loans: [],
@@ -126,28 +142,32 @@ async function loadData() {
   try {
     const data = await api("list");
     Object.assign(state, seedData(), data);
+    syncDerivedData();
     hideNotice();
   } catch {
     Object.assign(state, seedData(), JSON.parse(localStorage.getItem("cklibrary_cache") || "{}"));
+    syncDerivedData();
     showNotice("Đang dùng dữ liệu mẫu/bộ nhớ trình duyệt. Hãy cập nhật Apps Script backend để kết nối Google Sheets đầy đủ.");
   }
   renderAll();
 }
 
 async function saveRecord(kind, record) {
+  normalizeRecord(kind, record);
   validateRules(kind, record);
   const schema = schemas[kind];
   record.id = record.id || uid(schema.prefix);
   const index = state[schema.store].findIndex((item) => item.id === record.id);
   if (index >= 0) state[schema.store][index] = record; else state[schema.store].push(record);
+  syncDerivedData();
   await persist(kind, "upsert", record);
-  applySideEffects(kind, record);
   renderAll();
 }
 
 async function deleteRecord(kind, id) {
   const schema = schemas[kind];
-  state[schema.store] = state[schema.store].filter((item) => item.id !== id);
+  cascadeDelete(kind, id);
+  syncDerivedData();
   await persist(kind, "delete", { id });
   renderAll();
 }
@@ -159,7 +179,23 @@ async function persist(kind, op, record) {
 }
 
 function pickStores() {
+  syncDerivedData();
   return { areas: state.areas, shelves: state.shelves, books: state.books, borrowers: state.borrowers, loans: state.loans, finance: state.finance };
+}
+
+function normalizeRecord(kind, record) {
+  if (kind === "book") {
+    record.quantity = Math.max(1, num(record.quantity || 1));
+    record.coverPrice = num(record.coverPrice);
+    record.purchasePrice = num(record.purchasePrice);
+    record.borrowFee = num(record.borrowFee);
+  }
+  if (kind === "loan") {
+    record.deposit = num(record.deposit);
+    record.fee = num(record.fee);
+    record.damageFee = num(record.damageFee);
+  }
+  if (kind === "finance") record.amount = num(record.amount);
 }
 
 function validateRules(kind, record) {
@@ -169,16 +205,90 @@ function validateRules(kind, record) {
   const active = state.loans.filter((loan) => loan.borrowerId === record.borrowerId && loan.status === "Đang mượn" && loan.id !== record.id).length;
   if (active >= CONFIG.maxActiveLoans) throw new Error("Mỗi người chỉ được mượn tối đa 5 quyển đang mở.");
   if (new Date(toISODate(record.dueDate)) > new Date(addDays(record.borrowDate, CONFIG.maxLoanDays))) throw new Error("Hạn trả tối đa là 7 ngày.");
+  const book = byId(state.books, record.bookId);
+  if (book.id && book.status !== "Bảo trì" && book.status !== "Đã bán" && bookQuantity(book) - activeLoansForBookExcept(book.id, record.id) <= 0) throw new Error("Sách này đã hết bản còn trên kệ.");
 }
 
-function applySideEffects(kind, record) {
-  if (kind !== "loan") return;
-  const book = byId(state.books, record.bookId);
-  if (book.id) book.status = record.status === "Đang mượn" || record.status === "Quá hạn" ? "Cho mượn" : "Đang ở kệ";
-  if (record.status === "Đã trả") {
-    const netReturn = Number(record.deposit || 0) - Number(record.fee || 0) - Number(record.damageFee || 0);
-    state.finance.push({ id: uid("TC"), date: record.returnDate || todayISO(), kind: "Chi", category: "Hoàn cọc", amount: Math.max(netReturn, 0), note: `Hoàn cọc phiếu ${record.id}` });
+function cascadeDelete(kind, id) {
+  const linkedLoanIds = new Set();
+  const linkedBookIds = new Set();
+  if (kind === "person") {
+    state.loans.filter((loan) => loan.borrowerId === id).forEach((loan) => linkedLoanIds.add(loan.id));
+    state.borrowers = state.borrowers.filter((item) => item.id !== id);
+  } else if (kind === "book") {
+    linkedBookIds.add(id);
+    state.loans.filter((loan) => loan.bookId === id).forEach((loan) => linkedLoanIds.add(loan.id));
+    state.books = state.books.filter((item) => item.id !== id);
+  } else if (kind === "loan") {
+    linkedLoanIds.add(id);
+    state.loans = state.loans.filter((item) => item.id !== id);
+  } else if (kind === "shelf") {
+    state.books.filter((book) => book.shelfId === id).forEach((book) => linkedBookIds.add(book.id));
+    state.loans.filter((loan) => linkedBookIds.has(loan.bookId)).forEach((loan) => linkedLoanIds.add(loan.id));
+    state.shelves = state.shelves.filter((item) => item.id !== id);
+    state.books = state.books.filter((book) => book.shelfId !== id);
+  } else if (kind === "area") {
+    const shelfIds = new Set(state.shelves.filter((shelf) => shelf.areaId === id).map((shelf) => shelf.id));
+    state.books.filter((book) => shelfIds.has(book.shelfId)).forEach((book) => linkedBookIds.add(book.id));
+    state.loans.filter((loan) => linkedBookIds.has(loan.bookId)).forEach((loan) => linkedLoanIds.add(loan.id));
+    state.areas = state.areas.filter((item) => item.id !== id);
+    state.shelves = state.shelves.filter((shelf) => shelf.areaId !== id);
+    state.books = state.books.filter((book) => !shelfIds.has(book.shelfId));
+  } else {
+    const schema = schemas[kind];
+    state[schema.store] = state[schema.store].filter((item) => item.id !== id);
   }
+  if (linkedLoanIds.size) state.loans = state.loans.filter((loan) => !linkedLoanIds.has(loan.id));
+  state.finance = state.finance.filter((item) => {
+    const related = item.relatedId || "";
+    if ([...linkedLoanIds].some((loanId) => related.includes(loanId) || (item.note || "").includes(loanId))) return false;
+    if ([...linkedBookIds].some((bookId) => related.includes(bookId) || (item.note || "").includes(bookId))) return false;
+    return true;
+  });
+}
+
+function syncDerivedData() {
+  state.books.forEach((book) => {
+    book.quantity = Math.max(1, num(book.quantity || 1));
+    if (book.status !== "Bảo trì" && book.status !== "Đã bán") book.status = bookDisplayStatus(book);
+  });
+  const manualFinance = state.finance.filter((item) => !isAutoFinance(item) && item.category !== "Nhận đặt cọc" && item.category !== "Hoàn cọc");
+  const generated = [];
+  state.books.forEach((book) => {
+    const unitCost = num(book.purchasePrice) || num(book.coverPrice);
+    const amount = unitCost * bookQuantity(book);
+    if (amount > 0) generated.push({
+      id: `AUTOBOOK-${book.id}`,
+      date: book.purchaseDate || todayISO(),
+      kind: "Chi",
+      category: "Mua sách",
+      amount,
+      relatedId: `book:${book.id}`,
+      note: `Tự động: mua ${bookQuantity(book)} quyển sách ${book.title || book.id}`,
+    });
+  });
+  state.loans.forEach((loan) => {
+    const book = byId(state.books, loan.bookId);
+    if (loan.status !== "Hủy" && num(loan.fee) > 0) generated.push({
+      id: `AUTOLOANFEE-${loan.id}`,
+      date: loan.borrowDate || todayISO(),
+      kind: "Thu",
+      category: "Cho thuê",
+      amount: num(loan.fee),
+      relatedId: `loan-fee:${loan.id}`,
+      note: `Tự động: phí cho thuê phiếu ${loan.id} - ${book.title || loan.bookId}`,
+    });
+    if (loan.status === "Đã trả" && num(loan.damageFee) > 0) generated.push({
+      id: `AUTOLOANDAMAGE-${loan.id}`,
+      date: loan.returnDate || todayISO(),
+      kind: "Thu",
+      category: "Bồi thường",
+      amount: num(loan.damageFee),
+      relatedId: `loan-damage:${loan.id}`,
+      note: `Tự động: phí hư hỏng/khác phiếu ${loan.id}`,
+    });
+  });
+  state.finance = [...manualFinance, ...generated];
 }
 
 function showNotice(message) { $("#notice").textContent = message; $("#notice").classList.add("show"); }
@@ -210,8 +320,9 @@ function renderAdmin() {
 function renderStats() {
   const activeLoans = state.loans.filter((l) => l.status === "Đang mượn").length;
   const overdue = getOverdueLoans().length;
+  const totalCopies = state.books.reduce((sum, book) => sum + bookQuantity(book), 0);
   $("#stats").innerHTML = [
-    ["Sách", state.books.length], ["Đang mượn", activeLoans], ["Quá hạn", overdue], ["Người mượn", state.borrowers.length],
+    ["Sách", totalCopies], ["Đang mượn", activeLoans], ["Quá hạn", overdue], ["Người mượn", state.borrowers.length],
   ].map(([label, value]) => `<div class="stat"><b>${value}</b><span>${label}</span></div>`).join("");
 }
 
@@ -224,14 +335,14 @@ function renderBooks() {
     .map((b) => `<tr>
       <td>${b.id}</td><td>${b.type || ""}</td><td>${b.topic || ""}</td><td><b>${b.title || ""}</b></td><td>${b.author || ""}</td>
       <td>${b.publisher || ""}</td><td>${b.year || ""}</td><td>${byId(state.shelves, b.shelfId).name || ""}</td>
-      <td>${statusBadge(b.status)}</td><td>${fmtMoney(b.borrowFee)}</td>
+      <td>${bookQuantity(b)}</td><td>${activeLoansForBook(b.id)}</td><td>${availableCopies(b)}</td><td>${statusBadge(bookDisplayStatus(b))}</td><td>${fmtMoney(b.borrowFee)}</td>
       <td class="admin-only"><button class="icon-button" onclick="openForm('book','${b.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td>
     </tr>`).join("");
   $("#booksTable").innerHTML = rows || $("#emptyTemplate").innerHTML;
 }
 
 function renderBorrowOptions() {
-  const options = state.books.filter((b) => b.status === "Đang ở kệ").map((b) => `<option value="${b.id}">${b.title} - ${fmtMoney(b.borrowFee)}</option>`).join("");
+  const options = state.books.filter((b) => bookDisplayStatus(b) === "Đang ở kệ").map((b) => `<option value="${b.id}">${b.title} - còn ${availableCopies(b)} - ${fmtMoney(b.borrowFee)}</option>`).join("");
   $("#borrowRequestForm select[name=bookId]").innerHTML = options || "<option value=''>Chưa có sách sẵn sàng</option>";
 }
 
@@ -264,10 +375,10 @@ function renderFinance() {
     const date = toISODate(f.date);
     return date >= from && date <= to;
   });
-  const income = rows.filter((f) => f.kind === "Thu").reduce((s, f) => s + Number(f.amount || 0), 0);
-  const expense = rows.filter((f) => f.kind === "Chi").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const income = rows.filter((f) => f.kind === "Thu" && f.category !== "Nhận đặt cọc").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const expense = rows.filter((f) => f.kind === "Chi" && f.category !== "Hoàn cọc").reduce((s, f) => s + Number(f.amount || 0), 0);
   $("#financeSummary").innerHTML = [["Thu", income], ["Chi", expense], ["Còn lại", income - expense]].map(([l, v]) => `<div class="stat"><b>${fmtMoney(v)}</b><span>${l}</span></div>`).join("");
-  $("#financeTable").innerHTML = rows.map((f) => `<tr><td>${f.id}</td><td>${fmtDate(f.date)}</td><td>${f.kind}</td><td>${f.category}</td><td>${fmtMoney(f.amount)}</td><td>${f.note || ""}</td><td><button class="icon-button" onclick="openForm('finance','${f.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`).join("") || $("#emptyTemplate").innerHTML;
+  $("#financeTable").innerHTML = rows.map((f) => `<tr><td>${f.id}</td><td>${fmtDate(f.date)}</td><td>${f.kind}</td><td>${f.category}</td><td>${fmtMoney(f.amount)}</td><td>${f.note || ""}</td><td>${f.relatedId ? "Tự động" : "Nhập tay"}</td><td><button class="icon-button" onclick="openForm('finance','${f.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`).join("") || $("#emptyTemplate").innerHTML;
 }
 
 function fieldHtml([name, label, type, readonly, klass], value = "") {
@@ -278,7 +389,7 @@ function fieldHtml([name, label, type, readonly, klass], value = "") {
   else if (type === "textarea") input = `<textarea ${common} rows="3">${value || ""}</textarea>`;
   else if (type === "area") input = options(state.areas.map((a) => [a.id, a.name]));
   else if (type === "shelf") input = options(state.shelves.map((s) => [s.id, `${s.name} (${byId(state.areas, s.areaId).name || ""})`]));
-  else if (type === "book") input = options(state.books.map((b) => [b.id, b.title]));
+  else if (type === "book") input = options(state.books.filter((b) => availableCopies(b) > 0 || String(value) === String(b.id)).map((b) => [b.id, `${b.title} (còn ${availableCopies(b)})`]));
   else if (type === "person") input = options(state.borrowers.map((p) => [p.id, `${p.name} - ${p.phone || ""}`]));
   else if (type === "date") input = `<input ${common} type="text" value="${fmtDate(value)}" placeholder="dd/mm/yyyy" inputmode="numeric" />`;
   else input = `<input ${common} type="${type}" value="${value || ""}" />`;
@@ -302,7 +413,7 @@ function defaultsFor(kind) {
   const base = { id: uid(schema.prefix) };
   if (kind === "loan") return { ...base, borrowDate: todayISO(), dueDate: addDays(todayISO(), CONFIG.maxLoanDays), status: "Đang mượn", deposit: 0, fee: 0, damageFee: 0 };
   if (kind === "finance") return { ...base, date: todayISO(), kind: "Thu", amount: 0 };
-  if (kind === "book") return { ...base, type: "Sách giấy", status: "Đang ở kệ", borrowFee: 0 };
+  if (kind === "book") return { ...base, type: "Sách giấy", status: "Đang ở kệ", quantity: 1, borrowFee: 0 };
   if (kind === "person") return { ...base, blacklisted: "Không" };
   return base;
 }
@@ -352,9 +463,13 @@ function bindEvents() {
     const person = state.borrowers.find((p) => p.phone === data.phone) || { id: uid("NM"), name: data.name, phone: data.phone, email: data.email, blacklisted: "Không", note: data.note };
     if (!state.borrowers.some((p) => p.id === person.id)) state.borrowers.push(person);
     const book = byId(state.books, data.bookId);
+    if (!book.id || availableCopies(book) <= 0) {
+      alert("Sách này đã hết bản còn trên kệ.");
+      return;
+    }
     const loan = { id: uid("YC"), bookId: data.bookId, borrowerId: person.id, borrowDate: todayISO(), dueDate: addDays(todayISO(), CONFIG.maxLoanDays), returnDate: "", deposit: book.coverPrice || 0, fee: book.borrowFee || 0, damageFee: 0, status: "Đang mượn", note: `Yêu cầu công khai: ${data.note || ""}` };
     state.loans.push(loan);
-    book.status = "Cho mượn";
+    syncDerivedData();
     localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
     try { await api("borrowRequest", { record: { person, loan } }); } catch {}
     event.currentTarget.reset();
