@@ -13,6 +13,7 @@ let state = {
   loans: [],
   finance: [],
   adminToken: localStorage.getItem("cklibrary_admin_token") || "",
+  loanStatusFilter: "",
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -377,12 +378,15 @@ function renderAdmin() {
 }
 
 function renderStats() {
-  const activeLoans = state.loans.filter((l) => l.status === "Đang mượn").length;
+  const activeLoans = state.loans.filter((l) => activeLoanStatuses.has(l.status)).length;
   const overdue = getOverdueLoans().length;
   const totalCopies = state.books.reduce((sum, book) => sum + bookQuantity(book), 0);
   $("#stats").innerHTML = [
-    ["Sách", totalCopies], ["Đang mượn", activeLoans], ["Quá hạn", overdue], ["Người mượn", state.borrowers.length],
-  ].map(([label, value]) => `<div class="stat"><b>${value}</b><span>${label}</span></div>`).join("");
+    ["Sách", totalCopies, "catalog", ""],
+    ["Đang mượn", activeLoans, "loans", "Đang mượn"],
+    ["Quá hạn", overdue, "loans", "Quá hạn"],
+    ["Người mượn", state.borrowers.length, "people", ""],
+  ].map(([label, value, view, filter]) => `<button class="stat actionable" type="button" data-stat-view="${view}" data-stat-filter="${filter}"><b>${value}</b><span>${label}</span></button>`).join("");
 }
 
 function renderBooks() {
@@ -405,9 +409,13 @@ function renderBorrowOptions() {
   $("#borrowRequestForm select[name=bookId]").innerHTML = options || "<option value=''>Chưa có sách sẵn sàng</option>";
 }
 
-function getOverdueLoans() {
+function isLoanOverdue(loan) {
   const now = new Date(todayISO());
-  return state.loans.filter((l) => l.status === "Đang mượn" && new Date(toISODate(l.dueDate)) < now);
+  return loan.status === "Quá hạn" || (loan.status === "Đang mượn" && new Date(toISODate(loan.dueDate)) < now);
+}
+
+function getOverdueLoans() {
+  return state.loans.filter(isLoanOverdue);
 }
 
 function renderAlerts() {
@@ -424,13 +432,31 @@ function renderPeople() {
 }
 
 function renderLoans() {
-  $("#loansTable").innerHTML = state.loans.map((l) => {
+  const rows = state.loans.filter((loan) => {
+    if (!state.loanStatusFilter) return true;
+    if (state.loanStatusFilter === "Quá hạn") return isLoanOverdue(loan);
+    return loan.status === state.loanStatusFilter;
+  });
+  $("#loansTable").innerHTML = rows.map((l) => {
     const canReturn = activeLoanStatuses.has(l.status);
     const returnButton = canReturn
       ? `<button class="icon-button" onclick="markLoanReturned('${l.id}')" title="Đánh dấu đã trả"><i data-lucide="check-check"></i></button>`
       : `<span class="badge good">Xong</span>`;
-    return `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${fmtDate(l.borrowDate)}</td><td>${fmtDate(l.dueDate)}</td><td>${fmtDate(l.returnDate)}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(l.status)}</td><td>${returnButton}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`;
+    return `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${fmtDate(l.borrowDate)}</td><td>${fmtDate(l.dueDate)}</td><td>${fmtDate(l.returnDate)}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(isLoanOverdue(l) ? "Quá hạn" : l.status)}</td><td>${returnButton}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`;
   }).join("") || $("#emptyTemplate").innerHTML;
+}
+
+function openView(view, filter = "") {
+  if (view === "loans") {
+    state.loanStatusFilter = filter || "";
+    const select = $("#loanStatusFilter");
+    if (select) select.value = state.loanStatusFilter;
+    renderLoans();
+  }
+  $$(".tab, .view").forEach((el) => el.classList.remove("active"));
+  document.querySelector(`.tab[data-view="${view}"]`)?.classList.add("active");
+  $(`#${view}View`)?.classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function markLoanReturned(id) {
@@ -505,15 +531,28 @@ function readDialogRecord() {
 
 function bindEvents() {
   $$(".tab").forEach((tab) => tab.addEventListener("click", () => {
-    $$(".tab, .view").forEach((el) => el.classList.remove("active"));
-    tab.classList.add("active");
-    $(`#${tab.dataset.view}View`).classList.add("active");
+    if (tab.dataset.view === "loans") {
+      state.loanStatusFilter = "";
+      const select = $("#loanStatusFilter");
+      if (select) select.value = "";
+      renderLoans();
+    }
+    openView(tab.dataset.view);
   }));
   $$("[data-open-form]").forEach((btn) => btn.addEventListener("click", () => openForm(btn.dataset.openForm)));
   $("#bookSearch").addEventListener("input", renderBooks);
   $("#bookStatusFilter").addEventListener("change", renderBooks);
   $("#financeFrom").addEventListener("change", renderFinance);
   $("#financeTo").addEventListener("change", renderFinance);
+  $("#loanStatusFilter").addEventListener("change", (event) => {
+    state.loanStatusFilter = event.target.value;
+    renderLoans();
+  });
+  $("#stats").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-stat-view]");
+    if (!button || !isAdmin()) return;
+    openView(button.dataset.statView, button.dataset.statFilter || "");
+  });
   $("#refreshBtn").addEventListener("click", loadData);
   $("#adminBtn").addEventListener("click", () => $("#adminDialog").showModal());
   $("#adminDialog form").addEventListener("submit", () => {
