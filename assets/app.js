@@ -59,6 +59,7 @@ const uid = (prefix) => `${prefix}${Date.now().toString(36).toUpperCase()}${Math
 const isAdmin = () => Boolean(state.adminToken);
 const byId = (list, id) => list.find((item) => item.id === id) || {};
 const num = (value) => Number(value || 0);
+const moneyInput = (value) => Number(String(value || "").replace(/[^\d-]/g, ""));
 const bookQuantity = (book) => Math.max(0, num(book.quantity || 1));
 const activeLoanStatuses = new Set(["Đang mượn", "Quá hạn"]);
 const activeLoansForBook = (bookId) => state.loans.filter((loan) => loan.bookId === bookId && activeLoanStatuses.has(loan.status)).length;
@@ -211,6 +212,36 @@ async function deleteRecord(kind, id) {
   syncDerivedData();
   await persist(kind, "delete", { id });
   renderAll();
+}
+
+async function updateAllBorrowFees() {
+  if (!isAdmin()) return alert("Bạn cần mở khóa quản trị trước.");
+  if (!state.books.length) return alert("Chưa có sách để cập nhật phí mượn.");
+  const raw = prompt("Nhập phí mượn áp dụng cho toàn bộ sách (đ):", "0");
+  if (raw === null) return;
+  const fee = moneyInput(raw);
+  if (!Number.isFinite(fee) || fee < 0) return alert("Phí mượn không hợp lệ.");
+  if (!confirm(`Cập nhật phí mượn ${fmtMoney(fee)} cho ${state.books.length} đầu sách?`)) return;
+
+  state.books = state.books.map((book) => ({ ...book, borrowFee: fee }));
+  syncDerivedData();
+  localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
+  renderAll();
+  showNotice(`Đang cập nhật phí mượn ${fmtMoney(fee)} cho toàn bộ sách...`);
+
+  let failed = 0;
+  for (const book of state.books) {
+    try {
+      await api("save", { kind: "book", op: "upsert", record: book });
+    } catch {
+      failed += 1;
+    }
+  }
+  if (failed) {
+    showNotice(`Đã cập nhật tạm trên trình duyệt, nhưng ${failed} sách chưa ghi được vào Google Sheet. Vui lòng thử tải lại hoặc cập nhật lại.`);
+  } else {
+    showNotice(`Đã cập nhật phí mượn ${fmtMoney(fee)} cho toàn bộ sách.`);
+  }
 }
 
 async function persist(kind, op, record) {
@@ -540,6 +571,7 @@ function bindEvents() {
     openView(tab.dataset.view);
   }));
   $$("[data-open-form]").forEach((btn) => btn.addEventListener("click", () => openForm(btn.dataset.openForm)));
+  $("#updateBorrowFeesBtn").addEventListener("click", updateAllBorrowFees);
   $("#bookSearch").addEventListener("input", renderBooks);
   $("#bookStatusFilter").addEventListener("change", renderBooks);
   $("#financeFrom").addEventListener("change", renderFinance);
