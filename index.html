@@ -22,7 +22,7 @@
     </header>
 
     <main>
-      <section class="stats" id="stats"></section>
+      <section class="stats admin-only" id="stats"></section>
 
       <nav class="tabs" aria-label="Chức năng">
         <button class="tab active" data-view="catalog"><i data-lucide="library"></i><span>Kho sách</span></button>
@@ -100,7 +100,16 @@
       </section>
 
       <section class="view admin-only" id="loansView">
-        <div class="toolbar"><button class="primary" data-open-form="loan"><i data-lucide="plus"></i><span>Tạo phiếu mượn</span></button></div>
+        <div class="toolbar">
+          <button class="primary" data-open-form="loan"><i data-lucide="plus"></i><span>Tạo phiếu mượn</span></button>
+          <select id="loanStatusFilter">
+            <option value="">Tất cả phiếu</option>
+            <option value="Đang mượn">Đang mượn</option>
+            <option value="Quá hạn">Quá hạn</option>
+            <option value="Đã trả">Đã trả</option>
+            <option value="Hủy">Hủy</option>
+          </select>
+        </div>
         <div class="table-wrap">
           <table><thead><tr><th>ID</th><th>Sách</th><th>Người mượn</th><th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Cọc</th><th>Phí</th><th>Trạng thái</th><th>Trả sách</th><th>Sửa</th></tr></thead><tbody id="loansTable"></tbody></table>
         </div>
