@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>CK Library</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260710-pending1" />
+    <link rel="stylesheet" href="assets/styles.css?v=20260710-pending2" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-    <script src="assets/app.js?v=20260710-pending1" defer></script>
+    <script src="assets/app.js?v=20260710-pending2" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -70,6 +70,7 @@
             <h2>Đăng ký mượn sách</h2>
             <div class="form-message" id="borrowFormMessage" role="status" aria-live="polite"></div>
             <label>Chọn sách<select name="bookId" required></select></label>
+            <div class="borrow-book-preview" id="borrowBookPreview"></div>
             <label>Họ tên<input name="name" required /></label>
             <label>Số điện thoại<input name="phone" required /></label>
             <label>Email<input type="email" name="email" /></label>
