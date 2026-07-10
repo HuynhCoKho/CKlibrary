@@ -156,6 +156,7 @@ dialog::backdrop { background: rgba(12, 20, 24, 0.38); }
 .dialog-card { padding: 22px; position: relative; }
 .dialog-card.small { width: min(420px, calc(100vw - 28px)); }
 .dialog-card .close { position: absolute; top: 14px; right: 14px; }
+.muted { color: var(--muted); }
 #dialogFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; margin-top: 10px; }
 #dialogFields .wide { grid-column: 1 / -1; }
 .dialog-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
