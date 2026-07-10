@@ -223,24 +223,17 @@ async function updateAllBorrowFees() {
 }
 
 async function applyAllBorrowFees(fee) {
-  state.books = state.books.map((book) => ({ ...book, borrowFee: fee }));
-  syncDerivedData();
-  localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
-  renderAll();
   showNotice(`Đang cập nhật phí mượn ${fmtMoney(fee)} cho toàn bộ sách...`);
-
-  let failed = 0;
-  for (const book of state.books) {
-    try {
-      await api("save", { kind: "book", op: "upsert", record: book });
-    } catch {
-      failed += 1;
-    }
-  }
-  if (failed) {
-    showNotice(`Đã cập nhật tạm trên trình duyệt, nhưng ${failed} sách chưa ghi được vào Google Sheet. Vui lòng thử tải lại hoặc cập nhật lại.`);
-  } else {
-    showNotice(`Đã cập nhật phí mượn ${fmtMoney(fee)} cho toàn bộ sách.`);
+  try {
+    const result = await api("bulkBorrowFee", { fee });
+    if (!result || Number(result.updated || 0) < state.books.length) throw new Error("Backend chưa cập nhật đủ toàn bộ sách.");
+    state.books = state.books.map((book) => ({ ...book, borrowFee: fee }));
+    syncDerivedData();
+    localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
+    renderAll();
+    showNotice(`Đã cập nhật phí mượn ${fmtMoney(fee)} cho ${result.updated} sách.`);
+  } catch (error) {
+    showNotice(`Chưa cập nhật được toàn bộ phí mượn: ${error.message}. Hãy cập nhật Code.gs mới và deploy lại Web App.`);
   }
 }
 
