@@ -94,7 +94,7 @@ const schemas = {
     ["id", "ID", "text", true], ["bookId", "Sách", "book"], ["borrowerId", "Người mượn", "person"],
     ["borrowDate", "Ngày mượn", "date"], ["dueDate", "Hạn trả", "date"], ["returnDate", "Ngày trả", "date"],
     ["deposit", "Tiền đặt cọc", "number"], ["fee", "Phí mượn", "number"], ["damageFee", "Phí hư hỏng/khác", "number"],
-    ["status", "Trạng thái", ["Đang mượn", "Đã trả", "Quá hạn", "Hủy"]], ["note", "Ghi chú", "textarea", false, "wide"],
+    ["status", "Trạng thái", ["Chờ xác nhận", "Đang mượn", "Đã trả", "Quá hạn", "Hủy"]], ["note", "Ghi chú", "textarea", false, "wide"],
   ]},
   finance: { title: "Thu chi", store: "finance", prefix: "TC", fields: [
     ["id", "ID", "text", true], ["date", "Ngày", "date"], ["kind", "Loại", ["Thu", "Chi"]],
@@ -341,7 +341,7 @@ function syncDerivedData() {
   });
   state.loans.forEach((loan) => {
     const book = byId(state.books, loan.bookId);
-    if (loan.status !== "Hủy" && num(loan.fee) > 0) generated.push({
+    if (["Đang mượn", "Quá hạn", "Đã trả"].includes(loan.status) && num(loan.fee) > 0) generated.push({
       id: `AUTOLOANFEE-${loan.id}`,
       date: loan.borrowDate || todayISO(),
       kind: "Thu",
@@ -410,10 +410,12 @@ function renderAdmin() {
 
 function renderStats() {
   const activeLoans = state.loans.filter((l) => activeLoanStatuses.has(l.status)).length;
+  const pendingLoans = state.loans.filter((l) => l.status === "Chờ xác nhận").length;
   const overdue = getOverdueLoans().length;
   const totalCopies = state.books.reduce((sum, book) => sum + bookQuantity(book), 0);
   $("#stats").innerHTML = [
     ["Sách", totalCopies, "catalog", ""],
+    ["Chờ xác nhận", pendingLoans, "loans", "Chờ xác nhận"],
     ["Đang mượn", activeLoans, "loans", "Đang mượn"],
     ["Quá hạn", overdue, "loans", "Quá hạn"],
     ["Người mượn", state.borrowers.length, "people", ""],
@@ -469,11 +471,12 @@ function renderLoans() {
     return loan.status === state.loanStatusFilter;
   });
   $("#loansTable").innerHTML = rows.map((l) => {
-    const canReturn = activeLoanStatuses.has(l.status);
-    const returnButton = canReturn
-      ? `<button class="icon-button" onclick="markLoanReturned('${l.id}')" title="Đánh dấu đã trả"><i data-lucide="check-check"></i></button>`
+    const actionButton = l.status === "Chờ xác nhận"
+      ? `<button class="icon-button" onclick="markLoanApproved('${l.id}')" title="Xác nhận cho mượn"><i data-lucide="badge-check"></i></button>`
+      : activeLoanStatuses.has(l.status)
+        ? `<button class="icon-button" onclick="markLoanReturned('${l.id}')" title="Đánh dấu đã trả"><i data-lucide="check-check"></i></button>`
       : `<span class="badge good">Xong</span>`;
-    return `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${fmtDate(l.borrowDate)}</td><td>${fmtDate(l.dueDate)}</td><td>${fmtDate(l.returnDate)}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(isLoanOverdue(l) ? "Quá hạn" : l.status)}</td><td>${returnButton}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`;
+    return `<tr><td>${l.id}</td><td>${byId(state.books, l.bookId).title || l.bookId}</td><td>${byId(state.borrowers, l.borrowerId).name || l.borrowerId}</td><td>${fmtDate(l.borrowDate)}</td><td>${fmtDate(l.dueDate)}</td><td>${fmtDate(l.returnDate)}</td><td>${fmtMoney(l.deposit)}</td><td>${fmtMoney(l.fee)}</td><td>${statusBadge(isLoanOverdue(l) ? "Quá hạn" : l.status)}</td><td>${actionButton}</td><td><button class="icon-button" onclick="openForm('loan','${l.id}')" title="Sửa"><i data-lucide="pencil"></i></button></td></tr>`;
   }).join("") || $("#emptyTemplate").innerHTML;
 }
 
@@ -496,6 +499,19 @@ async function markLoanReturned(id) {
   const updated = { ...loan, status: "Đã trả", returnDate: todayISO() };
   try {
     await saveRecord("loan", updated);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function markLoanApproved(id) {
+  const loan = byId(state.loans, id);
+  if (!loan.id || loan.status !== "Chờ xác nhận") return;
+  const borrowDate = todayISO();
+  const updated = { ...loan, status: "Đang mượn", borrowDate, dueDate: addDays(borrowDate, CONFIG.maxLoanDays), returnDate: "" };
+  try {
+    await saveRecord("loan", updated);
+    showNotice(`Đã xác nhận phiếu mượn ${loan.id}.`);
   } catch (error) {
     alert(error.message);
   }
@@ -622,7 +638,7 @@ function bindEvents() {
       const person = state.borrowers.find((p) => p.phone === data.phone) || { id: uid("NM"), name: data.name, phone: data.phone, email: data.email, blacklisted: "Không", note: data.note };
       const book = byId(state.books, data.bookId);
       if (!book.id || availableCopies(book) <= 0) throw new Error("Sách này đã hết bản còn trên kệ.");
-      const loan = { id: uid("YC"), bookId: data.bookId, borrowerId: person.id, borrowDate: todayISO(), dueDate: addDays(todayISO(), CONFIG.maxLoanDays), returnDate: "", deposit: book.coverPrice || 0, fee: book.borrowFee || 0, damageFee: 0, status: "Đang mượn", note: `Yêu cầu công khai: ${data.note || ""}` };
+      const loan = { id: uid("YC"), bookId: data.bookId, borrowerId: person.id, borrowDate: todayISO(), dueDate: addDays(todayISO(), CONFIG.maxLoanDays), returnDate: "", deposit: book.coverPrice || 0, fee: book.borrowFee || 0, damageFee: 0, status: "Chờ xác nhận", note: `Yêu cầu công khai: ${data.note || ""}` };
       await api("borrowRequest", { record: { person, loan } });
       if (!state.borrowers.some((p) => p.id === person.id)) state.borrowers.push(person);
       state.loans.push(loan);
@@ -645,6 +661,7 @@ function bindEvents() {
 
 window.openForm = openForm;
 window.markLoanReturned = markLoanReturned;
+window.markLoanApproved = markLoanApproved;
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   loadData();
