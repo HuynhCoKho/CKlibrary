@@ -16,6 +16,8 @@ let state = {
   adminToken: localStorage.getItem("cklibrary_admin_token") || "",
   loanStatusFilter: "",
 };
+let adminSyncTimer = null;
+let isLoadingData = false;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -180,17 +182,22 @@ function seedData() {
   };
 }
 
-async function loadData() {
-  showNotice("Đang tải dữ liệu...");
+async function loadData(options = {}) {
+  const silent = Boolean(options.silent);
+  if (isLoadingData) return;
+  isLoadingData = true;
+  if (!silent) showNotice("Đang tải dữ liệu...");
   try {
     const data = await api("list");
     Object.assign(state, seedData(), data);
     syncDerivedData();
-    hideNotice();
+    if (!silent) hideNotice();
   } catch {
     Object.assign(state, seedData(), JSON.parse(localStorage.getItem("cklibrary_cache") || "{}"));
     syncDerivedData();
-    showNotice("Chưa kết nối được Google Sheet/App Script, trang đang dùng dữ liệu tạm trong trình duyệt. Hãy cập nhật Code.gs và deploy lại Web App để đồng bộ dữ liệu thật.");
+    if (!silent) showNotice("Chưa kết nối được Google Sheet/App Script, trang đang dùng dữ liệu tạm trong trình duyệt. Hãy cập nhật Code.gs và deploy lại Web App để đồng bộ dữ liệu thật.");
+  } finally {
+    isLoadingData = false;
   }
   renderAll();
 }
@@ -203,6 +210,8 @@ async function saveRecord(kind, record) {
   const index = state[schema.store].findIndex((item) => item.id === record.id);
   if (index >= 0) state[schema.store][index] = record; else state[schema.store].push(record);
   syncDerivedData();
+  localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
+  renderAll();
   await persist(kind, "upsert", record);
   renderAll();
 }
@@ -398,7 +407,17 @@ function renderAll() {
 function renderAdmin() {
   document.body.classList.toggle("is-admin", isAdmin());
   $$(".admin-only").forEach((el) => el.classList.toggle("locked", !isAdmin()));
+  $("#appTitle").textContent = isAdmin() ? "Quản lý thư viện" : "Thư viện CK";
   $("#adminBtn span").textContent = isAdmin() ? "Đã mở khóa" : "Quản trị";
+  if (isAdmin() && !adminSyncTimer) {
+    adminSyncTimer = setInterval(() => {
+      if (document.visibilityState === "visible") loadData({ silent: true });
+    }, 7000);
+  }
+  if (!isAdmin() && adminSyncTimer) {
+    clearInterval(adminSyncTimer);
+    adminSyncTimer = null;
+  }
 }
 
 function renderStats() {
@@ -431,17 +450,23 @@ function renderBooks() {
 }
 
 function renderBorrowOptions() {
-  const options = state.books.filter((b) => bookDisplayStatus(b) === "Đang ở kệ").map((b) => `<option value="${b.id}">${b.title} - còn ${availableCopies(b)} - ${fmtMoney(b.borrowFee)}</option>`).join("");
-  $("#borrowRequestForm select[name=bookId]").innerHTML = options || "<option value=''>Chưa có sách sẵn sàng</option>";
-  renderBorrowBookPreview();
+  const books = state.books.filter((b) => bookDisplayStatus(b) === "Đang ở kệ");
+  const select = $("#borrowRequestForm select[name=bookId]");
+  const currentId = select.value || books[0]?.id || "";
+  select.innerHTML = books.map((b) => `<option value="${b.id}">${b.title}</option>`).join("") || "<option value=''>Chưa có sách sẵn sàng</option>";
+  select.value = books.some((book) => book.id === currentId) ? currentId : books[0]?.id || "";
+  $("#borrowBookChoices").innerHTML = books.map((book) => `
+    <button class="book-choice ${book.id === select.value ? "active" : ""}" type="button" data-book-id="${book.id}">
+      <b>${book.title}</b>
+      <span>${book.author || "Chưa có tác giả"} · còn ${availableCopies(book)} · phí ${fmtMoney(book.borrowFee)}</span>
+    </button>
+  `).join("") || "<p class='empty'>Chưa có sách sẵn sàng</p>";
 }
 
-function renderBorrowBookPreview() {
+function selectBorrowBook(bookId) {
   const select = $("#borrowRequestForm select[name=bookId]");
-  const book = byId(state.books, select?.value);
-  $("#borrowBookPreview").innerHTML = book.id
-    ? `<b>${book.title}</b><span>${book.author || "Chưa có tác giả"} · còn ${availableCopies(book)} · phí ${fmtMoney(book.borrowFee)}</span>`
-    : "Chưa chọn sách.";
+  select.value = bookId;
+  $$(".book-choice").forEach((button) => button.classList.toggle("active", button.dataset.bookId === bookId));
 }
 
 function ensureBorrowRequestSaved(result, loan) {
@@ -507,7 +532,9 @@ async function markLoanReturned(id) {
   if (!loan.id || !activeLoanStatuses.has(loan.status)) return;
   const updated = { ...loan, status: "Đã trả", returnDate: todayISO() };
   try {
+    showNotice(`Đang đánh dấu đã trả phiếu ${loan.id}...`);
     await saveRecord("loan", updated);
+    showNotice(`Đã đánh dấu trả sách cho phiếu ${loan.id}.`);
   } catch (error) {
     alert(error.message);
   }
@@ -519,6 +546,7 @@ async function markLoanApproved(id) {
   const borrowDate = todayISO();
   const updated = { ...loan, status: "Đang mượn", borrowDate, dueDate: addDays(borrowDate, CONFIG.maxLoanDays), returnDate: "" };
   try {
+    showNotice(`Đang xác nhận phiếu mượn ${loan.id}...`);
     await saveRecord("loan", updated);
     showNotice(`Đã xác nhận phiếu mượn ${loan.id}.`);
   } catch (error) {
@@ -599,7 +627,10 @@ function bindEvents() {
   $("#updateBorrowFeesBtn").addEventListener("click", updateAllBorrowFees);
   $("#bookSearch").addEventListener("input", renderBooks);
   $("#bookStatusFilter").addEventListener("change", renderBooks);
-  $("#borrowRequestForm select[name=bookId]").addEventListener("change", renderBorrowBookPreview);
+  $("#borrowBookChoices").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-book-id]");
+    if (button) selectBorrowBook(button.dataset.bookId);
+  });
   $("#financeFrom").addEventListener("change", renderFinance);
   $("#financeTo").addEventListener("change", renderFinance);
   $("#loanStatusFilter").addEventListener("change", (event) => {
