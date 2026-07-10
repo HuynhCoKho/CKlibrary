@@ -215,14 +215,13 @@ async function deleteRecord(kind, id) {
 }
 
 async function updateAllBorrowFees() {
-  if (!isAdmin()) return alert("Bạn cần mở khóa quản trị trước.");
-  if (!state.books.length) return alert("Chưa có sách để cập nhật phí mượn.");
-  const raw = prompt("Nhập phí mượn áp dụng cho toàn bộ sách (đ):", "0");
-  if (raw === null) return;
-  const fee = moneyInput(raw);
-  if (!Number.isFinite(fee) || fee < 0) return alert("Phí mượn không hợp lệ.");
-  if (!confirm(`Cập nhật phí mượn ${fmtMoney(fee)} cho ${state.books.length} đầu sách?`)) return;
+  if (!isAdmin()) return showNotice("Bạn cần mở khóa quản trị trước.");
+  if (!state.books.length) return showNotice("Chưa có sách để cập nhật phí mượn.");
+  $("#bulkBorrowFeeInput").value = 0;
+  $("#bulkFeeDialog").showModal();
+}
 
+async function applyAllBorrowFees(fee) {
   state.books = state.books.map((book) => ({ ...book, borrowFee: fee }));
   syncDerivedData();
   localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
@@ -591,6 +590,14 @@ function bindEvents() {
     state.adminToken = $("#adminTokenInput").value.trim();
     localStorage.setItem("cklibrary_admin_token", state.adminToken);
     renderAll();
+  });
+  $("#bulkFeeCancel").addEventListener("click", () => $("#bulkFeeDialog").close());
+  $("#bulkFeeDialog form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const fee = moneyInput($("#bulkBorrowFeeInput").value);
+    if (!Number.isFinite(fee) || fee < 0) return showNotice("Phí mượn không hợp lệ.");
+    $("#bulkFeeDialog").close();
+    await applyAllBorrowFees(fee);
   });
   $("#recordDialog form").addEventListener("submit", async (event) => {
     event.preventDefault();
