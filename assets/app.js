@@ -440,6 +440,22 @@ function renderBooks() {
 function renderBorrowOptions() {
   const options = state.books.filter((b) => bookDisplayStatus(b) === "Đang ở kệ").map((b) => `<option value="${b.id}">${b.title} - còn ${availableCopies(b)} - ${fmtMoney(b.borrowFee)}</option>`).join("");
   $("#borrowRequestForm select[name=bookId]").innerHTML = options || "<option value=''>Chưa có sách sẵn sàng</option>";
+  renderBorrowBookPreview();
+}
+
+function renderBorrowBookPreview() {
+  const select = $("#borrowRequestForm select[name=bookId]");
+  const book = byId(state.books, select?.value);
+  $("#borrowBookPreview").innerHTML = book.id
+    ? `<b>${book.title}</b><span>${book.author || "Chưa có tác giả"} · còn ${availableCopies(book)} · phí ${fmtMoney(book.borrowFee)}</span>`
+    : "Chưa chọn sách.";
+}
+
+function ensureBorrowRequestSaved(result, loan) {
+  const savedLoan = result?.id === loan.id || result?.loan?.id === loan.id || result?.loans?.some((item) => item.id === loan.id);
+  if (!savedLoan) {
+    throw new Error("Apps Script backend chưa ghi phiếu mượn vào Google Sheet. Hãy cập nhật Code.gs mới và deploy lại Web App.");
+  }
 }
 
 function isLoanOverdue(loan) {
@@ -590,6 +606,7 @@ function bindEvents() {
   $("#updateBorrowFeesBtn").addEventListener("click", updateAllBorrowFees);
   $("#bookSearch").addEventListener("input", renderBooks);
   $("#bookStatusFilter").addEventListener("change", renderBooks);
+  $("#borrowRequestForm select[name=bookId]").addEventListener("change", renderBorrowBookPreview);
   $("#financeFrom").addEventListener("change", renderFinance);
   $("#financeTo").addEventListener("change", renderFinance);
   $("#loanStatusFilter").addEventListener("change", (event) => {
@@ -639,7 +656,8 @@ function bindEvents() {
       const book = byId(state.books, data.bookId);
       if (!book.id || availableCopies(book) <= 0) throw new Error("Sách này đã hết bản còn trên kệ.");
       const loan = { id: uid("YC"), bookId: data.bookId, borrowerId: person.id, borrowDate: todayISO(), dueDate: addDays(todayISO(), CONFIG.maxLoanDays), returnDate: "", deposit: book.coverPrice || 0, fee: book.borrowFee || 0, damageFee: 0, status: "Chờ xác nhận", note: `Yêu cầu công khai: ${data.note || ""}` };
-      await api("borrowRequest", { record: { person, loan } });
+      const result = await api("borrowRequest", { record: { person, loan } });
+      ensureBorrowRequestSaved(result, loan);
       if (!state.borrowers.some((p) => p.id === person.id)) state.borrowers.push(person);
       state.loans.push(loan);
       syncDerivedData();
