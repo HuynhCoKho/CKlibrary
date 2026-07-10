@@ -42,6 +42,7 @@ function doPost(e) {
     if (body.action === 'list') return jsonResponse({ ok: true, data: listData() });
     if (body.action === 'borrowRequest') return jsonResponse({ ok: true, data: saveBorrowRequest(body.record) });
     requireAdmin(body.token);
+    if (body.action === 'bulkBorrowFee') return jsonResponse({ ok: true, data: bulkUpdateBorrowFee(body.fee) });
     if (body.action === 'save') return jsonResponse({ ok: true, data: saveRecord(body.kind, body.op, body.record) });
     if (body.action === 'setup') return jsonResponse({ ok: true, data: setupSheets() });
     throw new Error('Action không hợp lệ.');
@@ -117,6 +118,26 @@ function saveBorrowRequest(record) {
     upsertRow('loans', loan);
     syncDerivedData();
     return loan;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function bulkUpdateBorrowFee(fee) {
+  const value = numberValue(fee);
+  if (value < 0) throw new Error('Phí mượn không hợp lệ.');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(8000);
+  try {
+    const books = readTable('books');
+    books.forEach((book) => {
+      book.borrowFee = value;
+      normalizeRecord('book', book);
+      upsertRow('books', book);
+    });
+    syncDerivedData();
+    return { updated: books.length, fee: value };
   } finally {
     lock.releaseLock();
   }
