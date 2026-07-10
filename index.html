@@ -150,6 +150,19 @@
       </form>
     </dialog>
 
+    <dialog id="bulkFeeDialog">
+      <form method="dialog" class="dialog-card small">
+        <button class="icon-button close" value="cancel" title="Đóng"><i data-lucide="x"></i></button>
+        <h2>Cập nhật phí mượn</h2>
+        <p class="muted">Áp dụng một mức phí cho toàn bộ sách hiện có.</p>
+        <label>Phí mượn mỗi sách (đ)<input id="bulkBorrowFeeInput" type="number" min="0" step="1000" value="0" /></label>
+        <div class="dialog-actions">
+          <button type="button" value="cancel" id="bulkFeeCancel">Hủy</button>
+          <button class="primary" type="submit"><i data-lucide="save"></i><span>Cập nhật</span></button>
+        </div>
+      </form>
+    </dialog>
+
     <template id="emptyTemplate"><tr><td colspan="12" class="empty">Chưa có dữ liệu</td></tr></template>
   </body>
 </html>
