@@ -94,7 +94,7 @@ function saveRecord(kind, op, record) {
       return record;
     }
     normalizeRecord(kind, record);
-    if (kind === 'loan' && record.status === 'Đang mượn') validateLoan(record);
+  if (kind === 'loan' && record.status === 'Đang mượn') validateLoan(record);
     upsertRow(table, record);
     syncDerivedData();
     return record;
@@ -110,6 +110,7 @@ function saveBorrowRequest(record) {
   try {
     const person = record.person;
     const loan = record.loan;
+    loan.status = 'Chờ xác nhận';
     normalizeRecord('loan', loan);
     upsertRow('borrowers', person);
     validateLoan(loan);
@@ -215,7 +216,7 @@ function syncDerivedData() {
 
   loans.forEach((loan) => {
     const book = books.find((item) => item.id === loan.bookId) || {};
-    if (loan.status !== 'Hủy' && numberValue(loan.fee) > 0) upsertRow('finance', {
+    if (['Đang mượn', 'Quá hạn', 'Đã trả'].indexOf(loan.status) >= 0 && numberValue(loan.fee) > 0) upsertRow('finance', {
       id: 'AUTOLOANFEE-' + loan.id,
       date: loan.borrowDate || todayISO(),
       kind: 'Thu',
