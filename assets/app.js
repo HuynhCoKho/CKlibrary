@@ -614,7 +614,7 @@ function bindEvents() {
   });
   $("#borrowRequestForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
+    const form = event.currentTarget || event.target || $("#borrowRequestForm");
     hideFormMessage();
     setBorrowSubmitting(true);
     try {
@@ -628,7 +628,7 @@ function bindEvents() {
       state.loans.push(loan);
       syncDerivedData();
       localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
-      form.reset();
+      if (form && typeof form.reset === "function") form.reset();
       showFormMessage("success", "Đã gửi yêu cầu mượn sách thành công.");
       await loadData();
       document.querySelector('[data-view="catalog"]')?.click();
