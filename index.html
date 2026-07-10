@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>CK Library</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260710-sync2" />
+    <link rel="stylesheet" href="assets/styles.css?v=20260710-pending1" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-    <script src="assets/app.js?v=20260710-sync2" defer></script>
+    <script src="assets/app.js?v=20260710-pending1" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -105,6 +105,7 @@
           <button class="primary" data-open-form="loan"><i data-lucide="plus"></i><span>Tạo phiếu mượn</span></button>
           <select id="loanStatusFilter">
             <option value="">Tất cả phiếu</option>
+            <option value="Chờ xác nhận">Chờ xác nhận</option>
             <option value="Đang mượn">Đang mượn</option>
             <option value="Quá hạn">Quá hạn</option>
             <option value="Đã trả">Đã trả</option>
@@ -112,7 +113,7 @@
           </select>
         </div>
         <div class="table-wrap">
-          <table><thead><tr><th>ID</th><th>Sách</th><th>Người mượn</th><th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Cọc</th><th>Phí</th><th>Trạng thái</th><th>Trả sách</th><th>Sửa</th></tr></thead><tbody id="loansTable"></tbody></table>
+          <table><thead><tr><th>ID</th><th>Sách</th><th>Người mượn</th><th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Cọc</th><th>Phí</th><th>Trạng thái</th><th>Thao tác</th><th>Sửa</th></tr></thead><tbody id="loansTable"></tbody></table>
         </div>
       </section>
 
