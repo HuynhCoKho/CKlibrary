@@ -3,6 +3,7 @@ const CONFIG = {
   currency: "vi-VN",
   maxActiveLoans: 5,
   maxLoanDays: 7,
+  requestTimeoutMs: 45000,
 };
 
 let state = {
@@ -106,7 +107,7 @@ async function api(action, payload = {}) {
   if (action === "list") return jsonpList();
   if (action === "borrowRequest") return jsonpAction("borrowRequest", payload);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), CONFIG.requestTimeoutMs);
   try {
     const res = await fetch(CONFIG.apiUrl, {
       method: "POST",
@@ -136,7 +137,7 @@ function jsonpAction(action, payload = {}) {
     const timeoutId = setTimeout(() => {
       cleanup();
       reject(new Error("Không tải được dữ liệu từ Apps Script."));
-    }, 12000);
+    }, CONFIG.requestTimeoutMs);
     const cleanup = () => {
       clearTimeout(timeoutId);
       delete window[callbackName];
@@ -363,7 +364,7 @@ function syncDerivedData() {
 }
 
 function showNotice(message) { $("#notice").textContent = message; $("#notice").classList.add("show"); }
-function hideNotice() { $("#notice").classList.remove("show"); }
+function hideNotice() { $("#notice").textContent = ""; $("#notice").classList.remove("show"); }
 function showFormMessage(type, message) {
   const box = $("#borrowFormMessage");
   if (!box) return;
