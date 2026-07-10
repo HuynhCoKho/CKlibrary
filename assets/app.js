@@ -613,10 +613,11 @@ function bindEvents() {
   });
   $("#borrowRequestForm").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     hideFormMessage();
     setBorrowSubmitting(true);
     try {
-      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+      const data = Object.fromEntries(new FormData(form).entries());
       const person = state.borrowers.find((p) => p.phone === data.phone) || { id: uid("NM"), name: data.name, phone: data.phone, email: data.email, blacklisted: "Không", note: data.note };
       const book = byId(state.books, data.bookId);
       if (!book.id || availableCopies(book) <= 0) throw new Error("Sách này đã hết bản còn trên kệ.");
@@ -626,7 +627,7 @@ function bindEvents() {
       state.loans.push(loan);
       syncDerivedData();
       localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
-      event.currentTarget.reset();
+      form.reset();
       showFormMessage("success", "Đã gửi yêu cầu mượn sách thành công.");
       await loadData();
       document.querySelector('[data-view="catalog"]')?.click();
