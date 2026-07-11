@@ -19,17 +19,69 @@ body {
   background: #eef5f4;
 }
 .page-head {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding: 26px clamp(18px, 4vw, 56px) 20px;
+  padding: 30px clamp(18px, 4vw, 56px) 24px;
   background: #fff;
   border-bottom: 1px solid var(--line);
 }
 .eyebrow { margin: 0 0 6px; color: var(--brand); font-weight: 850; }
 h1, h2, p { margin: 0; }
-h1 { font-size: clamp(30px, 5vw, 46px); }
+.brand-panel {
+  grid-column: 2;
+  text-align: center;
+}
+.brand-mark {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  padding: 0 16px 10px;
+}
+h1 {
+  position: relative;
+  z-index: 2;
+  color: var(--brand-dark);
+  font-size: clamp(42px, 7vw, 84px);
+  font-weight: 950;
+  line-height: 0.96;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-shadow: 0 8px 24px rgba(23, 107, 106, 0.12);
+}
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 8px;
+  z-index: 1;
+  height: 18px;
+  border-bottom: 5px solid #6eb67a;
+  border-radius: 50%;
+  transform: rotate(-1deg);
+}
+.vine {
+  position: absolute;
+  z-index: 3;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px 999px 999px 0;
+  background: #91c978;
+  box-shadow: 42px -8px 0 -5px #4f9f67, 86px 4px 0 -6px #9acf7c, 128px -7px 0 -6px #5cae70;
+}
+.vine-left {
+  left: 2%;
+  bottom: 3px;
+  transform: rotate(-22deg);
+}
+.vine-right {
+  right: 2%;
+  bottom: 12px;
+  transform: scaleX(-1) rotate(-22deg);
+}
 .sub { margin-top: 8px; color: var(--muted); font-weight: 650; }
 main { padding: 22px clamp(18px, 4vw, 56px) 44px; }
 button, input, select, textarea, .admin-link {
@@ -52,6 +104,7 @@ button, .admin-link {
 }
 button svg, .admin-link svg { width: 18px; height: 18px; }
 .head-actions {
+  grid-column: 3;
   display: grid;
   justify-items: end;
   gap: 8px;
@@ -186,7 +239,12 @@ label { display: grid; gap: 6px; color: #3e4d56; font-weight: 800; }
 .form-message.success { color: #1f6b42; background: #e7f5ec; border: 1px solid #bfe4cc; }
 .form-message.error { color: #9e2f22; background: #fff5f3; border: 1px solid #efc4bd; }
 @media (max-width: 720px) {
-  .page-head { align-items: flex-start; flex-direction: column; }
-  .head-actions { justify-items: start; }
+  .page-head {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .brand-panel,
+  .head-actions { grid-column: 1; }
+  .head-actions { justify-items: center; }
   .tools { grid-template-columns: 1fr; }
 }
