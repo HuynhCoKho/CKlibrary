@@ -108,7 +108,7 @@ function renderBooks() {
       <div class="book-tags">
         <span class="tag">${book.type || "Sách"}</span>
         <span class="tag ${bookCanBorrow(book) ? "ready" : "muted"}">${bookCanBorrow(book) ? `Còn ${borrowableCopies(book)} quyển` : "Hết lượt mượn"}</span>
-        <span class="tag">${fmtMoney(book.borrowFee)}</span>
+        <span class="tag">Phí mượn: ${fmtMoney(book.borrowFee)}</span>
       </div>
       <h2>${book.title || "Chưa đặt tên"}</h2>
       <p class="book-meta">${book.author || "Chưa có tác giả"}</p>
