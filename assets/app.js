@@ -58,6 +58,8 @@ const addDays = (iso, days) => {
   d.setDate(d.getDate() + days);
   return dateToISO(d);
 };
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const transientSaveError = (error) => /lock|timeout|network|failed to fetch|abort/i.test(String(error?.message || error || ""));
 const uid = (prefix) => `${prefix}${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 const isAdmin = () => Boolean(state.adminToken);
 const byId = (list, id) => list.find((item) => item.id === id) || {};
@@ -128,6 +130,20 @@ async function api(action, payload = {}) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+async function apiWithRetry(action, payload = {}, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await api(action, payload);
+    } catch (error) {
+      lastError = error;
+      if (!transientSaveError(error) || attempt === attempts) break;
+      await sleep(900 * attempt);
+    }
+  }
+  throw lastError;
 }
 
 function jsonpList() {
@@ -251,7 +267,12 @@ async function applyAllBorrowFees(fee) {
 async function persist(kind, op, record) {
   localStorage.setItem("cklibrary_cache", JSON.stringify(pickStores()));
   if (!isAdmin() && op !== "borrowRequest") return;
-  try { await api("save", { kind, op, record }); } catch (error) { showNotice(`Đã lưu tạm trên trình duyệt, chưa ghi được vào Sheet: ${error.message}`); }
+  try {
+    await apiWithRetry("save", { kind, op, record }, 4);
+  } catch (error) {
+    showNotice(`Đã lưu tạm trên trình duyệt, chưa ghi được vào Sheet: ${error.message}`);
+    throw new Error(`Chưa ghi được vào Google Sheet. Mình đã giữ thay đổi tạm trên trình duyệt, bạn chờ vài giây rồi bấm Lưu lại. Chi tiết: ${error.message}`);
+  }
 }
 
 function pickStores() {
@@ -645,6 +666,9 @@ function bindEvents() {
   });
   $("#refreshBtn").addEventListener("click", loadData);
   $("#adminBtn").addEventListener("click", () => $("#adminDialog").showModal());
+  $$("#recordDialog .close, #adminDialog .close, #bulkFeeDialog .close").forEach((button) => {
+    button.addEventListener("click", () => button.closest("dialog").close());
+  });
   $("#adminDialog form").addEventListener("submit", () => {
     state.adminToken = $("#adminTokenInput").value.trim();
     localStorage.setItem("cklibrary_admin_token", state.adminToken);
@@ -660,15 +684,25 @@ function bindEvents() {
   });
   $("#recordDialog form").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = event.submitter;
+    if (submitButton) submitButton.disabled = true;
     try {
       await saveRecord($("#recordDialog").dataset.kind, readDialogRecord());
       $("#recordDialog").close();
-    } catch (error) { alert(error.message); }
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
   });
   $("#deleteBtn").addEventListener("click", async () => {
     if (!confirm("Xóa bản ghi này?")) return;
-    await deleteRecord($("#recordDialog").dataset.kind, $("#recordDialog").dataset.id);
-    $("#recordDialog").close();
+    try {
+      await deleteRecord($("#recordDialog").dataset.kind, $("#recordDialog").dataset.id);
+      $("#recordDialog").close();
+    } catch (error) {
+      alert(error.message);
+    }
   });
   $("#borrowRequestForm").addEventListener("submit", async (event) => {
     event.preventDefault();
