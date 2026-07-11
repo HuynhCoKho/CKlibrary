@@ -51,12 +51,22 @@ button, .admin-link {
   text-decoration: none;
 }
 button svg, .admin-link svg { width: 18px; height: 18px; }
+.head-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+.author {
+  color: var(--muted);
+  font-weight: 800;
+  white-space: nowrap;
+}
 .primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 .primary:hover { background: var(--brand-dark); }
 .icon-button { width: 42px; padding: 0; }
 .tools {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -177,5 +187,6 @@ label { display: grid; gap: 6px; color: #3e4d56; font-weight: 800; }
 .form-message.error { color: #9e2f22; background: #fff5f3; border: 1px solid #efc4bd; }
 @media (max-width: 720px) {
   .page-head { align-items: flex-start; flex-direction: column; }
+  .head-actions { justify-items: start; }
   .tools { grid-template-columns: 1fr; }
 }
