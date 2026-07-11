@@ -114,14 +114,14 @@ h1, h2, p { margin: 0; }
 }
 .sub { margin-top: 8px; color: var(--muted); font-weight: 650; }
 main { padding: 22px clamp(18px, 4vw, 56px) 44px; }
-button, input, select, textarea, .admin-link {
+button, input, select, textarea {
   font: inherit;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
 }
-button, .admin-link {
+button {
   min-height: 42px;
   display: inline-flex;
   align-items: center;
@@ -132,7 +132,7 @@ button, .admin-link {
   cursor: pointer;
   text-decoration: none;
 }
-button svg, .admin-link svg { width: 18px; height: 18px; }
+button svg { width: 18px; height: 18px; }
 .head-actions {
   grid-column: 3;
   display: grid;
