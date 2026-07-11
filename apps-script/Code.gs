@@ -21,6 +21,7 @@ const KIND_TO_TABLE = {
 };
 
 const ACTIVE_LOAN_STATUSES = ['Đang mượn', 'Quá hạn'];
+const UNAVAILABLE_LOAN_STATUSES = ['Chờ xác nhận', 'Đang mượn', 'Quá hạn'];
 
 function doGet(e) {
   try {
@@ -161,7 +162,7 @@ function validateLoan(loan) {
   const book = readTable('books').find((item) => item.id === loan.bookId);
   if (!book) throw new Error('Không tìm thấy sách.');
   if (book.status === 'Bảo trì' || book.status === 'Đã bán') throw new Error('Sách này hiện không sẵn sàng cho mượn.');
-  const activeForBook = loans.filter((item) => item.bookId === loan.bookId && item.id !== loan.id && ACTIVE_LOAN_STATUSES.indexOf(item.status) >= 0).length;
+  const activeForBook = loans.filter((item) => item.bookId === loan.bookId && item.id !== loan.id && UNAVAILABLE_LOAN_STATUSES.indexOf(item.status) >= 0).length;
   if (bookQuantity(book) - activeForBook <= 0) throw new Error('Sách này đã hết bản còn trên kệ.');
 }
 
@@ -213,7 +214,7 @@ function syncDerivedData() {
   books.forEach((book) => {
     book.quantity = bookQuantity(book);
     if (book.status !== 'Bảo trì' && book.status !== 'Đã bán') {
-      const active = loans.filter((loan) => loan.bookId === book.id && ACTIVE_LOAN_STATUSES.indexOf(loan.status) >= 0).length;
+      const active = loans.filter((loan) => loan.bookId === book.id && UNAVAILABLE_LOAN_STATUSES.indexOf(loan.status) >= 0).length;
       book.status = active >= book.quantity ? 'Cho mượn' : 'Đang ở kệ';
     }
     upsertRow('books', book);
