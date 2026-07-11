@@ -409,7 +409,6 @@ function renderAll() {
 function renderAdmin() {
   document.body.classList.toggle("is-admin", isAdmin());
   $$(".admin-only").forEach((el) => el.classList.toggle("locked", !isAdmin()));
-  $("#appTitle").textContent = isAdmin() ? "Quản lý thư viện" : "Thư viện CK";
   $("#adminBtn span").textContent = isAdmin() ? "Đã mở khóa" : "Quản trị";
   if (isAdmin() && !adminSyncTimer) {
     adminSyncTimer = setInterval(() => {
