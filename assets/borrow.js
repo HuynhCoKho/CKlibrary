@@ -20,10 +20,14 @@ const addDays = (iso, days) => {
   return dateToISO(d);
 };
 const bookQuantity = (book) => Math.max(0, num(book.quantity || 1));
-const activeLoanStatuses = new Set(["Đang mượn", "Quá hạn"]);
-const activeLoansForBook = (bookId) => state.loans.filter((loan) => loan.bookId === bookId && activeLoanStatuses.has(loan.status)).length;
-const availableCopies = (book) => Math.max(bookQuantity(book) - activeLoansForBook(book.id), 0);
-const bookReady = (book) => book.status !== "Bảo trì" && book.status !== "Đã bán" && availableCopies(book) > 0;
+const unavailableLoanStatuses = new Set(["Chờ xác nhận", "Đang mượn", "Quá hạn"]);
+const unavailableLoansForBook = (bookId) => state.loans.filter((loan) => loan.bookId === bookId && unavailableLoanStatuses.has(loan.status)).length;
+const bookIsBlocked = (book) => book.status === "Bảo trì" || book.status === "Đã bán";
+const activeLoansForBook = (bookId) => unavailableLoansForBook(bookId);
+const borrowableCopies = (book) => (bookIsBlocked(book) ? 0 : Math.max(bookQuantity(book) - unavailableLoansForBook(book.id), 0));
+const availableCopies = borrowableCopies;
+const bookCanBorrow = (book) => borrowableCopies(book) > 0;
+const shelfName = (book) => state.shelves.find((shelf) => String(shelf.id) === String(book.shelfId))?.name || book.shelfId || "Chưa có vị trí kệ";
 
 function showNotice(message) {
   $("#notice").textContent = message;
@@ -98,25 +102,27 @@ function filteredBooks() {
   const keyword = $("#searchInput").value.trim().toLowerCase();
   const topic = $("#topicFilter").value;
   return state.books
-    .filter(bookReady)
     .filter((book) => !topic || book.topic === topic)
     .filter((book) => [book.title, book.author, book.topic, book.publisher].join(" ").toLowerCase().includes(keyword));
 }
 
 function renderBooks() {
   const books = filteredBooks();
-  $("#summary").textContent = `Có ${books.length} sách sẵn sàng cho mượn`;
+  const totalBorrowable = books.reduce((sum, book) => sum + borrowableCopies(book), 0);
+  const borrowableTitles = books.filter(bookCanBorrow).length;
+  $("#summary").textContent = `Hiển thị ${books.length} đầu sách, ${borrowableTitles} đầu sách còn có thể mượn (${totalBorrowable} quyển còn trên kệ).`;
   $("#bookGrid").innerHTML = books.map((book) => `
-    <article class="book-card">
+    <article class="book-card ${bookCanBorrow(book) ? "" : "unavailable"}">
       <div class="book-tags">
         <span class="tag">${book.type || "Sách"}</span>
-        <span class="tag ready">Còn ${availableCopies(book)}</span>
+        <span class="tag ${bookCanBorrow(book) ? "ready" : "muted"}">${bookCanBorrow(book) ? `Còn ${borrowableCopies(book)} quyển` : "Hết lượt mượn"}</span>
         <span class="tag">${fmtMoney(book.borrowFee)}</span>
       </div>
       <h2>${book.title || "Chưa đặt tên"}</h2>
       <p class="book-meta">${book.author || "Chưa có tác giả"}<br>${book.publisher || "Chưa có NXB"}${book.year ? ` · ${book.year}` : ""}<br>${book.topic || "Chưa có chủ đề"}</p>
+      <p class="shelf-line"><i data-lucide="map-pin"></i><span>${shelfName(book)}</span></p>
       <div class="card-actions">
-        <button class="primary" type="button" data-borrow="${book.id}"><i data-lucide="handshake"></i><span>Mượn sách</span></button>
+        <button class="primary" type="button" data-borrow="${book.id}" ${bookCanBorrow(book) ? "" : "disabled"}><i data-lucide="handshake"></i><span>${bookCanBorrow(book) ? "Mượn sách" : "Tạm hết"}</span></button>
       </div>
     </article>
   `).join("") || "<div class='empty'>Không tìm thấy sách phù hợp.</div>";
@@ -126,9 +132,10 @@ function renderBooks() {
 function openBorrowDialog(bookId) {
   const book = state.books.find((item) => item.id === bookId);
   if (!book) return;
+  if (!bookCanBorrow(book)) return;
   $("#bookIdInput").value = book.id;
   $("#dialogBookTitle").textContent = book.title || book.id;
-  $("#dialogBookMeta").textContent = `${book.author || "Chưa có tác giả"} · còn ${availableCopies(book)} · phí ${fmtMoney(book.borrowFee)}`;
+  $("#dialogBookMeta").textContent = `${book.author || "Chưa có tác giả"} · ${shelfName(book)} · còn ${availableCopies(book)} · phí ${fmtMoney(book.borrowFee)}`;
   clearFormMessage();
   $("#borrowDialog").showModal();
 }
