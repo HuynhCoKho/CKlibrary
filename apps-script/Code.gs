@@ -88,7 +88,7 @@ function saveRecord(kind, op, record) {
   if (!record || !record.id) throw new Error('Thiếu ID.');
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(8000);
+  lock.waitLock(30000);
   try {
     if (op === 'delete') {
       cascadeDelete(kind, record.id);
@@ -108,7 +108,7 @@ function saveRecord(kind, op, record) {
 function saveBorrowRequest(record) {
   if (!record || !record.person || !record.loan) throw new Error('Thiếu thông tin mượn sách.');
   const lock = LockService.getScriptLock();
-  lock.waitLock(8000);
+  lock.waitLock(30000);
   try {
     const person = record.person;
     const loan = record.loan;
@@ -129,7 +129,7 @@ function bulkUpdateBorrowFee(fee) {
   if (value < 0) throw new Error('Phí mượn không hợp lệ.');
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(8000);
+  lock.waitLock(30000);
   try {
     const books = readTable('books');
     books.forEach((book) => {
