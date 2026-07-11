@@ -38,15 +38,15 @@ h1, h2 { margin: 0; letter-spacing: 0; }
 h1 { font-size: clamp(24px, 4vw, 34px); }
 h2 { font-size: 18px; }
 main { padding: 18px clamp(16px, 4vw, 44px) 40px; }
-button, input, select, textarea {
+button, input, select, textarea, .public-link {
   font: inherit;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
 }
-button { cursor: pointer; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 13px; font-weight: 750; }
-button svg { width: 18px; height: 18px; }
+button, .public-link { cursor: pointer; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 13px; font-weight: 750; text-decoration: none; }
+button svg, .public-link svg { width: 18px; height: 18px; }
 .primary { background: var(--brand); color: #fff; border-color: var(--brand); }
 .primary:hover { background: var(--brand-dark); }
 .danger { background: #fff5f3; color: #9e2f22; border-color: #efc4bd; }
