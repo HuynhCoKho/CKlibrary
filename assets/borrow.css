@@ -38,7 +38,7 @@ h1, h2, p { margin: 0; }
   position: relative;
   display: inline-block;
   isolation: isolate;
-  padding: 4px 16px 12px;
+  padding: 6px 18px 18px;
 }
 .botanical-title {
   position: relative;
@@ -47,19 +47,16 @@ h1, h2, p { margin: 0; }
   align-items: flex-end;
   justify-content: center;
   flex-wrap: wrap;
-  gap: clamp(2px, 0.55vw, 8px);
-  color: #2f7c43;
+  gap: clamp(3px, 0.65vw, 10px);
+  color: #276f3c;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(42px, 7vw, 88px);
+  font-size: clamp(42px, 7vw, 82px);
   font-weight: 400;
   line-height: 0.98;
   letter-spacing: 0;
   text-transform: uppercase;
-  text-shadow:
-    1px 1px 0 #b8e08d,
-    -1px 0 0 #0e6b42,
-    0 2px 0 #0c5d39,
-    0 12px 24px rgba(23, 107, 106, 0.16);
+  text-shadow: 0 1px 0 #a8d782;
+  -webkit-text-stroke: 1px #1d6937;
 }
 .botanical-title span {
   position: relative;
@@ -75,51 +72,45 @@ h1, h2, p { margin: 0; }
   content: "";
   position: absolute;
   z-index: 2;
-  width: 0.28em;
-  height: 0.16em;
+  width: 0.22em;
+  height: 0.13em;
   border-radius: 100% 0 100% 0;
-  background: linear-gradient(135deg, #d7f184 0%, #79bd49 48%, #2f8b45 100%);
-  border: 1px solid rgba(40, 126, 61, 0.22);
-  box-shadow:
-    0.18em 0.38em 0 -0.03em #8dc85a,
-    -0.08em 0.72em 0 -0.05em #64aa55;
+  background: linear-gradient(135deg, #d9f48a 0%, #83c852 55%, #2f8b45 100%);
+  border: 1px solid rgba(40, 126, 61, 0.18);
+  box-shadow: none;
   transform-origin: 0 100%;
 }
 .botanical-title span:not(.space)::before {
-  top: 0.08em;
-  left: 0.06em;
-  transform: rotate(38deg);
+  top: -0.02em;
+  left: 0.02em;
+  transform: rotate(34deg);
 }
 .botanical-title span:not(.space)::after {
-  right: 0.02em;
-  bottom: 0.18em;
-  transform: scaleX(-1) rotate(38deg);
+  right: -0.02em;
+  bottom: 0.08em;
+  transform: scaleX(-1) rotate(34deg);
 }
 .botanical-title span:nth-child(2n)::before {
-  top: 0.3em;
-  left: -0.03em;
-  transform: rotate(-26deg);
+  top: 0.28em;
+  left: -0.04em;
+  transform: rotate(-28deg);
 }
 .botanical-title span:nth-child(3n)::after {
   right: -0.06em;
-  bottom: 0.48em;
-  transform: scaleX(-1) rotate(-18deg);
+  bottom: 0.44em;
+  transform: scaleX(-1) rotate(-16deg);
 }
 .brand-mark::after {
   content: "";
   position: absolute;
-  left: 9%;
-  right: 9%;
-  bottom: 4px;
+  left: 7%;
+  right: 7%;
+  bottom: 8px;
   z-index: 0;
-  height: 22px;
-  border-bottom: 4px solid #5da461;
+  height: 14px;
+  border-bottom: 2px solid #68aa5d;
   border-radius: 0 0 50% 50%;
-  box-shadow:
-    22px 8px 0 -9px #4f9f67,
-    88px 5px 0 -9px #9acf7c,
-    148px 9px 0 -9px #5cae70;
-  transform: rotate(-1deg);
+  transform: rotate(-0.5deg);
 }
 .sub { margin-top: 8px; color: var(--muted); font-weight: 650; }
 main { padding: 22px clamp(18px, 4vw, 56px) 44px; }
