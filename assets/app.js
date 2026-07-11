@@ -65,9 +65,11 @@ const num = (value) => Number(value || 0);
 const moneyInput = (value) => Number(String(value || "").replace(/[^\d-]/g, ""));
 const bookQuantity = (book) => Math.max(0, num(book.quantity || 1));
 const activeLoanStatuses = new Set(["Đang mượn", "Quá hạn"]);
+const unavailableLoanStatuses = new Set(["Chờ xác nhận", "Đang mượn", "Quá hạn"]);
 const activeLoansForBook = (bookId) => state.loans.filter((loan) => loan.bookId === bookId && activeLoanStatuses.has(loan.status)).length;
-const activeLoansForBookExcept = (bookId, excludedLoanId) => state.loans.filter((loan) => loan.bookId === bookId && loan.id !== excludedLoanId && activeLoanStatuses.has(loan.status)).length;
-const availableCopies = (book) => Math.max(bookQuantity(book) - activeLoansForBook(book.id), 0);
+const unavailableLoansForBook = (bookId) => state.loans.filter((loan) => loan.bookId === bookId && unavailableLoanStatuses.has(loan.status)).length;
+const unavailableLoansForBookExcept = (bookId, excludedLoanId) => state.loans.filter((loan) => loan.bookId === bookId && loan.id !== excludedLoanId && unavailableLoanStatuses.has(loan.status)).length;
+const availableCopies = (book) => Math.max(bookQuantity(book) - unavailableLoansForBook(book.id), 0);
 const bookDisplayStatus = (book) => {
   if (book.status === "Bảo trì" || book.status === "Đã bán") return book.status;
   return availableCopies(book) > 0 ? "Đang ở kệ" : "Cho mượn";
@@ -280,7 +282,7 @@ function validateRules(kind, record) {
   if (active >= CONFIG.maxActiveLoans) throw new Error("Mỗi người chỉ được mượn tối đa 5 quyển đang mở.");
   if (new Date(toISODate(record.dueDate)) > new Date(addDays(record.borrowDate, CONFIG.maxLoanDays))) throw new Error("Hạn trả tối đa là 7 ngày.");
   const book = byId(state.books, record.bookId);
-  if (book.id && book.status !== "Bảo trì" && book.status !== "Đã bán" && bookQuantity(book) - activeLoansForBookExcept(book.id, record.id) <= 0) throw new Error("Sách này đã hết bản còn trên kệ.");
+  if (book.id && book.status !== "Bảo trì" && book.status !== "Đã bán" && bookQuantity(book) - unavailableLoansForBookExcept(book.id, record.id) <= 0) throw new Error("Sách này đã hết bản còn trên kệ.");
 }
 
 function cascadeDelete(kind, id) {
