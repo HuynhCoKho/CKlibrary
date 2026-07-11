@@ -36,81 +36,86 @@ h1, h2, p { margin: 0; }
 }
 .brand-mark {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2vw, 18px);
   isolation: isolate;
-  padding: 6px 18px 18px;
+  padding: 4px 18px 10px;
 }
 .botanical-title {
   position: relative;
   z-index: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: clamp(3px, 0.65vw, 10px);
-  color: #276f3c;
+  color: #1f7a36;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(42px, 7vw, 82px);
-  font-weight: 400;
-  line-height: 0.98;
-  letter-spacing: 0;
+  font-size: clamp(34px, 5.2vw, 58px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  text-shadow: 0 1px 0 #a8d782;
-  -webkit-text-stroke: 1px #1d6937;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 0 #d9efc9,
+    0 3px 0 #0f5d2f,
+    0 8px 14px rgba(31, 122, 54, 0.16);
 }
-.botanical-title span {
-  position: relative;
-  display: inline-block;
-  min-width: 0.42em;
-}
-.botanical-title .space {
-  width: clamp(8px, 2vw, 28px);
-  min-width: clamp(8px, 2vw, 28px);
-}
-.botanical-title span:not(.space)::before,
-.botanical-title span:not(.space)::after {
+.brand-mark::before {
   content: "";
   position: absolute;
-  z-index: 2;
-  width: 0.22em;
-  height: 0.13em;
-  border-radius: 100% 0 100% 0;
-  background: linear-gradient(135deg, #d9f48a 0%, #83c852 55%, #2f8b45 100%);
-  border: 1px solid rgba(40, 126, 61, 0.18);
-  box-shadow: none;
-  transform-origin: 0 100%;
-}
-.botanical-title span:not(.space)::before {
-  top: -0.02em;
-  left: 0.02em;
-  transform: rotate(34deg);
-}
-.botanical-title span:not(.space)::after {
-  right: -0.02em;
-  bottom: 0.08em;
-  transform: scaleX(-1) rotate(34deg);
-}
-.botanical-title span:nth-child(2n)::before {
-  top: 0.28em;
-  left: -0.04em;
-  transform: rotate(-28deg);
-}
-.botanical-title span:nth-child(3n)::after {
-  right: -0.06em;
-  bottom: 0.44em;
-  transform: scaleX(-1) rotate(-16deg);
+  left: 12%;
+  right: 12%;
+  top: -4px;
+  bottom: -2px;
+  z-index: 0;
+  opacity: 0.42;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 18px 9px at 11% 28%, #8ecf61 0 48%, transparent 52%),
+    radial-gradient(ellipse 15px 8px at 23% 76%, #6fb655 0 48%, transparent 52%),
+    radial-gradient(ellipse 18px 9px at 77% 22%, #8ecf61 0 48%, transparent 52%),
+    radial-gradient(ellipse 15px 8px at 91% 72%, #6fb655 0 48%, transparent 52%);
 }
 .brand-mark::after {
   content: "";
   position: absolute;
-  left: 7%;
-  right: 7%;
-  bottom: 8px;
+  left: 8%;
+  right: 8%;
+  bottom: 5px;
   z-index: 0;
-  height: 14px;
-  border-bottom: 2px solid #68aa5d;
+  height: 18px;
+  border-bottom: 2px solid #66ad5e;
   border-radius: 0 0 50% 50%;
-  transform: rotate(-0.5deg);
+}
+.plant-book {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: clamp(32px, 4vw, 46px);
+  height: clamp(24px, 3vw, 34px);
+  border-radius: 6px 18px 6px 18px;
+  background: linear-gradient(135deg, #2f8d45 0%, #8ccc55 48%, #e2f5a1 100%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.42), 0 3px 0 #1f713c;
+  transform: rotate(-18deg);
+}
+.plant-book::before {
+  content: "";
+  position: absolute;
+  inset: 23% 24% 22% 24%;
+  border-radius: 100% 0 100% 0;
+  background: #d9f48a;
+  transform: rotate(18deg);
+}
+.plant-book::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 7px;
+  border-bottom: 2px solid rgba(31, 113, 60, 0.7);
+  transform: rotate(20deg);
+}
+.plant-book-right {
+  transform: scaleX(-1) rotate(-18deg);
 }
 .sub { margin-top: 8px; color: var(--muted); font-weight: 650; }
 main { padding: 22px clamp(18px, 4vw, 56px) 44px; }
