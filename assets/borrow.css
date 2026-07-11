@@ -103,8 +103,27 @@ textarea { resize: vertical; }
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
+.book-card.unavailable {
+  background: #f8fbfa;
+}
+.book-card.unavailable h2,
+.book-card.unavailable .book-meta {
+  color: #697984;
+}
 .book-card h2 { font-size: 18px; line-height: 1.35; }
 .book-meta { color: var(--muted); line-height: 1.5; }
+.shelf-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #36505b;
+  font-weight: 800;
+}
+.shelf-line svg {
+  width: 17px;
+  height: 17px;
+  color: var(--brand);
+}
 .book-tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .tag {
   display: inline-flex;
@@ -118,7 +137,15 @@ textarea { resize: vertical; }
   font-weight: 800;
 }
 .tag.ready { background: #e7f5ec; color: #2f7d4f; }
+.tag.muted { background: #eef2f3; color: #697984; }
 .card-actions { margin-top: auto; display: flex; justify-content: flex-end; }
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+button:disabled:hover {
+  background: var(--brand);
+}
 .empty {
   grid-column: 1 / -1;
   padding: 36px 16px;
