@@ -85,7 +85,6 @@ async function loadData() {
   try {
     const data = await jsonpAction("list");
     state = { books: data.books || [], loans: data.loans || [], borrowers: data.borrowers || [], shelves: data.shelves || [] };
-    renderTopics();
     renderBooks();
     hideNotice();
   } catch (error) {
@@ -93,17 +92,10 @@ async function loadData() {
   }
 }
 
-function renderTopics() {
-  const topics = [...new Set(state.books.map((book) => book.topic).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
-  $("#topicFilter").innerHTML = `<option value="">Tất cả chủ đề</option>${topics.map((topic) => `<option value="${topic}">${topic}</option>`).join("")}`;
-}
-
 function filteredBooks() {
   const keyword = $("#searchInput").value.trim().toLowerCase();
-  const topic = $("#topicFilter").value;
   return state.books
-    .filter((book) => !topic || book.topic === topic)
-    .filter((book) => [book.title, book.author, book.topic, book.publisher].join(" ").toLowerCase().includes(keyword));
+    .filter((book) => [book.title, book.author].join(" ").toLowerCase().includes(keyword));
 }
 
 function renderBooks() {
@@ -119,7 +111,7 @@ function renderBooks() {
         <span class="tag">${fmtMoney(book.borrowFee)}</span>
       </div>
       <h2>${book.title || "Chưa đặt tên"}</h2>
-      <p class="book-meta">${book.author || "Chưa có tác giả"}<br>${book.publisher || "Chưa có NXB"}${book.year ? ` · ${book.year}` : ""}<br>${book.topic || "Chưa có chủ đề"}</p>
+      <p class="book-meta">${book.author || "Chưa có tác giả"}</p>
       <p class="shelf-line"><i data-lucide="map-pin"></i><span>${shelfName(book)}</span></p>
       <div class="card-actions">
         <button class="primary" type="button" data-borrow="${book.id}" ${bookCanBorrow(book) ? "" : "disabled"}><i data-lucide="handshake"></i><span>${bookCanBorrow(book) ? "Mượn sách" : "Tạm hết"}</span></button>
@@ -135,7 +127,7 @@ function openBorrowDialog(bookId) {
   if (!bookCanBorrow(book)) return;
   $("#bookIdInput").value = book.id;
   $("#dialogBookTitle").textContent = book.title || book.id;
-  $("#dialogBookMeta").textContent = `${book.author || "Chưa có tác giả"} · ${shelfName(book)} · còn ${availableCopies(book)} · phí ${fmtMoney(book.borrowFee)}`;
+  $("#dialogBookMeta").textContent = `${book.author || "Chưa có tác giả"} · ${shelfName(book)} · phí ${fmtMoney(book.borrowFee)}`;
   clearFormMessage();
   $("#borrowDialog").showModal();
 }
@@ -153,7 +145,6 @@ function setSubmitting(isSubmitting) {
 
 function bindEvents() {
   $("#searchInput").addEventListener("input", renderBooks);
-  $("#topicFilter").addEventListener("change", renderBooks);
   $("#bookGrid").addEventListener("click", (event) => {
     const button = event.target.closest("[data-borrow]");
     if (button) openBorrowDialog(button.dataset.borrow);
