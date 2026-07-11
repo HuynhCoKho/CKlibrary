@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mượn sách - CK Library</title>
+    <link rel="stylesheet" href="assets/borrow.css?v=20260711-public1" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="assets/borrow.js?v=20260711-public1" defer></script>
+  </head>
+  <body>
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">CK Library</p>
+        <h1>Danh sách sách</h1>
+        <p class="sub">Tìm sách bạn muốn mượn, gửi yêu cầu và chờ thư viện xác nhận.</p>
+      </div>
+      <a class="admin-link" href="index.html"><i data-lucide="lock-keyhole"></i><span>Quản trị</span></a>
+    </header>
+
+    <main>
+      <section class="notice" id="notice"></section>
+
+      <section class="tools">
+        <div class="search">
+          <i data-lucide="search"></i>
+          <input id="searchInput" placeholder="Tìm tên sách, tác giả, chủ đề..." autocomplete="off" />
+        </div>
+        <select id="topicFilter" aria-label="Lọc chủ đề">
+          <option value="">Tất cả chủ đề</option>
+        </select>
+      </section>
+
+      <section class="summary" id="summary"></section>
+      <section class="book-grid" id="bookGrid"></section>
+    </main>
+
+    <dialog id="borrowDialog">
+      <form class="dialog-card" id="borrowForm">
+        <button class="icon-button close" type="button" id="closeDialog" title="Đóng"><i data-lucide="x"></i></button>
+        <p class="eyebrow">Yêu cầu mượn sách</p>
+        <h2 id="dialogBookTitle"></h2>
+        <p class="book-meta" id="dialogBookMeta"></p>
+        <div class="form-message" id="formMessage" role="status" aria-live="polite"></div>
+        <input type="hidden" name="bookId" id="bookIdInput" />
+        <label>Họ tên<input name="name" required autocomplete="name" /></label>
+        <label>Số điện thoại<input name="phone" required autocomplete="tel" /></label>
+        <label>Email<input type="email" name="email" autocomplete="email" /></label>
+        <label>Ghi chú<textarea name="note" rows="3"></textarea></label>
+        <button class="primary" type="submit" id="submitBtn"><i data-lucide="send"></i><span>Gửi yêu cầu</span></button>
+      </form>
+    </dialog>
+  </body>
+</html>
