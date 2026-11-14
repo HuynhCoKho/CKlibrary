@@ -32,6 +32,7 @@
       <nav class="tabs" aria-label="Chức năng">
         <button class="tab active" data-view="catalog"><i data-lucide="library"></i><span>Kho sách</span></button>
         <button class="tab" data-view="borrow"><i data-lucide="handshake"></i><span>Mượn sách</span></button>
+        <button class="tab" data-view="ebooks"><i data-lucide="book-open-text"></i><span>Đọc sách online</span></button>
         <button class="tab admin-only" data-view="areas"><i data-lucide="map-pin"></i><span>Khu vực</span></button>
         <button class="tab admin-only" data-view="shelves"><i data-lucide="archive"></i><span>Kệ sách</span></button>
         <button class="tab admin-only" data-view="people"><i data-lucide="users"></i><span>Người mượn</span></button>
@@ -87,6 +88,21 @@
             <div id="alerts"></div>
           </div>
         </div>
+      </section>
+
+      <section class="view" id="ebooksView" aria-label="Đọc sách online">
+        <div class="toolbar">
+          <a class="public-link" href="https://script.google.com/macros/s/AKfycbwXItCKJ1X74siROagrfvRPO3JqV5A3X3ymOibyznrQiCFHEoC7npJ3bzjZ9T-mlCedDQ/exec" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i><span>Mở trang đọc sách riêng</span></a>
+        </div>
+        <iframe
+          title="Đọc sách online"
+          src="https://script.google.com/macros/s/AKfycbwXItCKJ1X74siROagrfvRPO3JqV5A3X3ymOibyznrQiCFHEoC7npJ3bzjZ9T-mlCedDQ/exec"
+          loading="lazy"
+          allow="fullscreen"
+          allowfullscreen
+          style="display:block;width:100%;height:80vh;height:80dvh;min-height:520px;border:1px solid var(--line);border-radius:8px;background:#fff;"
+        ></iframe>
+        <p class="muted">Nếu nội dung không hiển thị trong khung, anh/chị có thể bấm “Mở trang đọc sách riêng”.</p>
       </section>
 
       <section class="view admin-only" id="areasView">
